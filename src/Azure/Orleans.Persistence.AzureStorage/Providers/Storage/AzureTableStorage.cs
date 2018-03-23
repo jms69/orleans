@@ -19,6 +19,7 @@ using Orleans.Runtime.Configuration;
 using Orleans.Serialization;
 using Orleans.Providers.Azure;
 using Orleans.Persistence.AzureStorage;
+using Orleans.Configuration.Overrides;
 
 namespace Orleans.Storage
 {
@@ -498,7 +499,8 @@ namespace Orleans.Storage
         public static IGrainStorage Create(IServiceProvider services, string name)
         {
             IOptionsSnapshot<AzureTableStorageOptions> optionsSnapshot = services.GetRequiredService<IOptionsSnapshot<AzureTableStorageOptions>>();
-            return ActivatorUtilities.CreateInstance<AzureTableGrainStorage>(services, optionsSnapshot.Get(name), name);
+            IOptions<ClusterOptions> clusterOptions = services.GetProviderClusterOptions(name);
+            return ActivatorUtilities.CreateInstance<AzureTableGrainStorage>(services, name, optionsSnapshot.Get(name), clusterOptions);
         }
     }
 }
