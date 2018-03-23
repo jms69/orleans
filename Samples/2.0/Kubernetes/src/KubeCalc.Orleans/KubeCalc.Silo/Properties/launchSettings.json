@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "KubeCalc.Silo": {
+      "commandName": "Project",
+      "commandLineArgs": "--localdebug",
+      "environmentVariables": {
+        "ClusterId": "LocalCluster"
+      }
+    }
+  }
+}

@@ -1,0 +1,41 @@
+﻿@model CalcResultModel
+@{
+    
+    ViewData["Title"] = "Home Page";        
+}
+
+<div class="row">
+
+    <div class="col-md-12">
+        <h2>Enter a Kube value</h2>
+        @Html.TextBox("txtValue", null, new { placeholder = Model.Input })
+        <input type="button" value="Calc" id="btnCalc" />
+    </div>
+
+    <script>
+    $(function () {
+        $('#btnCalc').unbind('click');
+        $('#btnCalc').on('click', function () {
+            alert("Test");
+            //$.ajax({
+            //    url: "/yourControllerName/yourMethod" + $("#txtValue").val(),
+            //    type: 'GET',
+            //    async: false
+            //});
+       });
+    });
+    </script>
+
+    @for (int i = 0; i < Model.Columns; i++)
+    {
+        <div class="col-md-3">
+            <ul>
+                @for (int j = 0; j < Model.BlockSize; j++)
+                {
+                    var ivalue = Model.Input + i * Model.BlockSize + j;
+                    <li>@Model.CalcResult[ivalue]</li>
+                }
+            </ul>
+        </div>
+    }
+</div>
