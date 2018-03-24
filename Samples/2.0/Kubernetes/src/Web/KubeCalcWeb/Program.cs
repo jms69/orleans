@@ -17,9 +17,22 @@ namespace KubeCalcWeb
             BuildWebHost(args).Run();
         }
 
-        public static IWebHost BuildWebHost(string[] args) =>
-            WebHost.CreateDefaultBuilder(args)
-                .UseStartup<Startup>()
+        public static IWebHost BuildWebHost(string[] args)
+        {
+            var configuration = new ConfigurationBuilder()
+                .AddCommandLine(args)
                 .Build();
+
+            var builder = WebHost.CreateDefaultBuilder(args)
+                .UseConfiguration(configuration)
+                .UseStartup<Startup>();
+
+            if (configuration["url"] != null)
+            {
+                builder.UseUrls(configuration["url"]);
+            }
+
+            return builder.Build();
+        }
     }
 }

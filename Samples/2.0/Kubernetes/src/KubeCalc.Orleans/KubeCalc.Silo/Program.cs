@@ -48,7 +48,11 @@ namespace KubeCalc.Silo
 
             var appConfiguration = configBuilder.Build();
 
-            var clusterId = Environment.GetEnvironmentVariable("ClusterId") ?? "defaultClusterId";
+            var clusterId = Environment.GetEnvironmentVariable("ClusterId");
+            if (string.IsNullOrEmpty(clusterId))
+            {
+                clusterId = "defaultClusterId";
+            }
 
             Console.WriteLine($"ClusterId = {clusterId}");
 
@@ -59,6 +63,10 @@ namespace KubeCalc.Silo
                         {
                             o.ClusterId = clusterId;
                             o.ServiceId = new Guid("aeb9598c-37f6-4590-aa22-a9b945b23e14");
+                        })
+                        .Configure<SiloOptions>(o =>
+                        {
+                            o.SiloName = System.Environment.MachineName;                            
                         })
                         .Configure<ProcessExitHandlingOptions>(o =>
                         {

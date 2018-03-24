@@ -1,30 +1,16 @@
 ﻿@model CalcResultModel
 @{
-    
-    ViewData["Title"] = "Home Page";        
+
+    ViewData["Title"] = "Home Page";
 }
 
 <div class="row">
 
     <div class="col-md-12">
         <h2>Enter a Kube value</h2>
-        @Html.TextBox("txtValue", null, new { placeholder = Model.Input })
+        <input id="inputVal" type="text" value="@Model.Input" />
         <input type="button" value="Calc" id="btnCalc" />
     </div>
-
-    <script>
-    $(function () {
-        $('#btnCalc').unbind('click');
-        $('#btnCalc').on('click', function () {
-            alert("Test");
-            //$.ajax({
-            //    url: "/yourControllerName/yourMethod" + $("#txtValue").val(),
-            //    type: 'GET',
-            //    async: false
-            //});
-       });
-    });
-    </script>
 
     @for (int i = 0; i < Model.Columns; i++)
     {
@@ -39,3 +25,38 @@
         </div>
     }
 </div>
+
+@section Scripts
+{
+<script type="text/javascript">
+
+    $(document).ready(function () {        
+        $('#btnCalc').click(function () {
+            var terms = window.location.href.split("?");            
+            var url = terms[0] + "?input=" + $('#inputVal').val();
+            window.location.href = url;
+        });
+    });
+    //jQuery(function ($) {
+    //    // $ = jQuery regardless of what it means
+    //    // outside this DOM ready function
+    //    console.log("ready!");
+    //});
+        //$(function () {
+        //    console.log("ready!");
+        //    alert($('#btnCalc').val());
+        //});
+
+    //$(function () {
+    //    $('#btnCalc').unbind('click');
+    //    $('#btnCalc').on('click', function () {
+    //        alert("Test");
+    //        //$.ajax({
+    //        //    url: "/yourControllerName/yourMethod" + $("#txtValue").val(),
+    //        //    type: 'GET',
+    //        //    async: false
+    //        //});
+    //   });
+    //});
+</script>
+}

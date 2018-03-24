@@ -28,20 +28,35 @@ namespace KubeCalcWeb
             services.AddMvc();
 
             var clusterId = "LocalCluster";
-            
-            services.AddSingleton<IClusterClient>(s => {
-                var client = new ClientBuilder()                   
-                                                .Configure<ClusterOptions>(o =>
-                                                {
-                                                    o.ClusterId = clusterId;
-                                                    o.ServiceId = new Guid("aeb9598c-37f6-4590-aa22-a9b945b23e14");
-                                                })                             
-                                                .UseStaticClustering(new [] { new IPEndPoint(IPAddress.Loopback, 40000)})
-                                                .ConfigureLogging(logging => logging.SetMinimumLevel(LogLevel.Information).AddConsole())
-                                                .Build();
-                client.Connect().Wait();
 
-                return client;
+            var siloAddresses = Configuration["silohost"] == null ? new[] { IPAddress.Loopback } : Dns.GetHostEntry(Configuration["silohost"]).AddressList;
+
+            services.AddSingleton<IClusterClient>(s => {
+
+                while (true)
+                {
+                    try
+                    {
+                        var client = new ClientBuilder()
+                                .Configure<ClusterOptions>(o =>
+                                {
+                                    o.ClusterId = clusterId;
+                                    o.ServiceId = new Guid("aeb9598c-37f6-4590-aa22-a9b945b23e14");
+                                })
+                                .UseStaticClustering(siloAddresses.Select(a => new IPEndPoint(a, 40000)).ToArray())
+                                .ConfigureLogging(logging => logging.SetMinimumLevel(LogLevel.Information).AddConsole())
+                                .Build();
+
+                        client.Connect().Wait();
+                        return client;
+                    }
+                    catch (AggregateException aex)
+                    {
+                        var baseEx = aex.InnerException;
+                        Console.WriteLine(baseEx.Message);
+                    }
+                    System.Threading.Thread.Sleep(2000);
+                }                
             });
         }
 

@@ -1,0 +1,38 @@
+version: '3'
+services:
+  kubecalcsilo:
+    image: kubecalcsilo
+    build:
+      context: .
+      dockerfile: Dockerfile.kubecalcsilo
+    expose:
+      - "40000"
+      - "22222"
+    volumes:
+      - c:\Users\jamessu\AppData\Roaming\Microsoft\UserSecrets\KubeCalc-UserSecrets\:/etc/secrets
+    deploy:
+      replicas: 5
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: 50M
+    networks:
+      - kubecalcnet
+  kubecalcweb:
+    image: kubecalcweb
+    build:
+      context: .
+      dockerfile: Dockerfile.kubecalcweb
+    ports:
+      - "8000:8000"
+    command: url=http://0.0.0.0:8000 silohost=kubecalcsilo
+    depends_on:
+      - kubecalcsilo
+    networks:
+      - kubecalcnet
+networks:
+  kubecalcnet:
+
+    
