@@ -38,4 +38,4 @@ dotnet run --project src\Web\KubeCalcWeb\KubeCalcWeb.csproj
 ```
 - Open a browser to http://localhost:12184/
 ## Next
-[Build and Run in Docker](Docker.md)
+- [Build and Run in Docker](Docker.md)
