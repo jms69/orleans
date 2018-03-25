@@ -29,7 +29,9 @@ namespace KubeCalcWeb
 
             var clusterId = "LocalCluster";
 
-            var siloAddresses = Configuration["silohost"] == null ? new[] { IPAddress.Loopback } : Dns.GetHostEntry(Configuration["silohost"]).AddressList;
+            //var siloAddresses = Configuration["silohost"] == null ? new[] { IPAddress.Loopback } : Dns.GetHostEntry(Configuration["silohost"]).AddressList;
+            int siloPortVal = 0;
+            var siloPort = int.TryParse(Configuration["siloport"], out siloPortVal) ? siloPortVal : 40000;
 
             services.AddSingleton<IClusterClient>(s => {
 
@@ -37,15 +39,25 @@ namespace KubeCalcWeb
                 {
                     try
                     {
-                        var client = new ClientBuilder()
+                        var builder = new ClientBuilder()
                                 .Configure<ClusterOptions>(o =>
                                 {
                                     o.ClusterId = clusterId;
                                     o.ServiceId = new Guid("aeb9598c-37f6-4590-aa22-a9b945b23e14");
                                 })
-                                .UseStaticClustering(siloAddresses.Select(a => new IPEndPoint(a, 40000)).ToArray())
-                                .ConfigureLogging(logging => logging.SetMinimumLevel(LogLevel.Information).AddConsole())
-                                .Build();
+                                .UseDnsNameLookupClustering(Configuration["silohost"], siloPort)                                
+                                .ConfigureLogging(logging => logging.SetMinimumLevel(LogLevel.Information).AddConsole());
+
+                        if (Configuration["silohost"] == null)
+                        {
+                            builder.UseStaticClustering(new[] { new IPEndPoint(IPAddress.Loopback, siloPort) });
+                        }
+                        else
+                        {
+                            builder.UseDnsNameLookupClustering(Configuration["silohost"], siloPort);
+                        }
+
+                        var client = builder.Build();
 
                         client.Connect().Wait();
                         return client;
