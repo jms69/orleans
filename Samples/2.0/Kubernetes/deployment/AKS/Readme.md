@@ -93,3 +93,39 @@ Delete this deployment.
 kubectl get deployment
 kubectl delete deployment kubecalcsilo
 ```
+#### Setup the Secret
+Now we need to copy our secrets.json file into the kubenetes secret store so it can be mapped into our container when deployed.
+
+```
+cd %APPDATA%\Microsoft\UserSecrets\KubeCalc-UserSecrets\
+kubectl create secret generic kubecalcsecret --from-file=secrets.json
+```
+
+## Deploy kubecalc
+
+#### Deploy as Two Services
+Open the file _kubecalc-twoservice.yaml_ and edit the file replacing _akssampleregistry.azurecr.io_ with your container registry.  Running this command will deploy kubecalsilo and kubecalcweb containers as separate services.
+```
+kubectl apply -f kubecalc-twoservice.yaml
+```
+The diagram below illustrates the configuration of this deployment.  The kubecalcsilo is deployed as an internal service with no load balancer (ClusterIP: None).  Resolving the DNS name kubecalcsilo will return the 3 addresses of the silo.  In this deployment we pass silohost=kubecalcsilo as an argement which will use the class DnsNameGatewayListProvider to periodically look up the DNS name.  The return ip list will can dynamically chage when scaling the silo instances up or down.  An alternative is to use UseAzureStorageClustering() on the client which will require injection of secrets.json in the kubecalcweb container.
+
+![](twoservices.png)
+
+Run this command and look at the external IP of the kubecalcweb service.  Open the browser to this address http://{externalip}.
+```
+kubectl get pod,service,deployment,statefulset
+```
+We can scale the silo up the silo using the command.
+```
+kubectl scale statefulsets/kubecalcsilo --replicas=10
+kubectl get pod,service,deployment,statefulset
+```
+
+Run the delete command to remove the deployment.
+```
+kubectl delete -f kubecalc-twoservice.yaml
+```
+## Deploy to a Single Pod
+TODO
+![](singlepod.png)

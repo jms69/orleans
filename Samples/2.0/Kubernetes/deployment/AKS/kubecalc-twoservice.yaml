@@ -1,0 +1,84 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: kubecalcweb
+spec:
+  type: LoadBalancer
+  selector:
+    app: kubecalcweb
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 5000
+---
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: kubecalcweb
+  labels:
+    app: kubecalcweb
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: kubecalcweb
+  template:
+    metadata:
+      labels:
+        app: kubecalcweb
+    spec:
+      containers:
+      - name: kubecalcweb
+        image: akssampleregistry.azurecr.io/kubecalcweb:latest
+        args: ["url=http://0.0.0.0:5000", "silohost=kubecalcsilo" ]
+        ports:
+        - containerPort: 5000
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: kubecalcsilo
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app: kubecalcsilo
+  ports:
+  - protocol: TCP
+    port: 40000
+    targetPort: 40000
+---
+apiVersion: apps/v1beta2
+kind: StatefulSet
+metadata:
+  name: kubecalcsilo
+spec:
+  selector:
+    matchLabels:
+      app: kubecalcsilo
+  serviceName: kubecalcsilo
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: kubecalcsilo
+    spec:
+      containers:
+      - name: kubecalcsilo
+        image: akssampleregistry.azurecr.io/kubecalcsilo:latest
+        env:
+        - name: ClusterId
+          value: AKSCluster
+        ports:
+        - name: orleansgateway
+          containerPort: 40000
+        - name: orleansport
+          containerPort: 22222
+        volumeMounts:
+          - name: secrets
+            mountPath: "/etc/secrets"
+            readOnly: true
+      volumes:
+      - name: secrets
+        secret:
+          secretName: kubecalcsecret
