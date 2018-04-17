@@ -3,10 +3,10 @@
     <RootNamespace>BenchmarkGrainInterfaces</RootNamespace>
     <AssemblyName>BenchmarkGrainInterfaces</AssemblyName>
     <OrleansBuildTimeCodeGen>true</OrleansBuildTimeCodeGen>
+    <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\src\Orleans.Core.Abstractions\Orleans.Core.Abstractions.csproj" />
     <ProjectReference Include="..\..\..\src\Orleans.Core\Orleans.Core.csproj" />
   </ItemGroup>
 </Project>

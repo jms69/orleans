@@ -93,7 +93,7 @@
 
     <!-- Test related packages -->
     <MicrosoftTestSdkVersion>15.5.0</MicrosoftTestSdkVersion>
-    <BenchmarkDotNetVersion>0.10.9</BenchmarkDotNetVersion>
+    <BenchmarkDotNetVersion>0.10.14</BenchmarkDotNetVersion>
     <FluentAssertionsVersion>4.19.4</FluentAssertionsVersion>
     <XunitSkippableFactVersion>1.3.3</XunitSkippableFactVersion>
     <xUnitVersion>2.3.1</xUnitVersion>
@@ -105,8 +105,8 @@
 
   <!-- Versioning properties -->
   <PropertyGroup>
-    <VersionPrefix Condition=" '$(VersionPrefix)'=='' ">2.0.0</VersionPrefix>
-    <VersionSuffix Condition=" '$(VersionSuffix)'=='' ">dev</VersionSuffix>
+    <AssemblyVersion>2.0.0.0</AssemblyVersion>
+    <VersionPrefix Condition=" '$(VersionPrefix)'=='' ">2.0.3</VersionPrefix>
   </PropertyGroup>
 
   <!-- For Debug builds generated a date/time dependent version suffix -->

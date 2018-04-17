@@ -32,27 +32,27 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OrleansAWSUtils", "src\AWS\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OrleansAzureUtils", "src\Azure\OrleansAzureUtils\OrleansAzureUtils.csproj", "{549F3A9B-582F-4AAB-8CD9-425F1A3CCDDE}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.Serialization.Bond", "src\Orleans.Serialization.Bond\Orleans.Serialization.Bond.csproj", "{9F5573CD-D3E4-4CA8-866A-3104BA2CF636}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.Serialization.Bond", "src\Serializers\Orleans.Serialization.Bond\Orleans.Serialization.Bond.csproj", "{9F5573CD-D3E4-4CA8-866A-3104BA2CF636}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.Clustering.Consul", "src\Orleans.Clustering.Consul\Orleans.Clustering.Consul.csproj", "{2C8AAE89-C0E3-4FD3-89DA-BA0593EDBE06}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.EventSourcing", "src\Orleans.EventSourcing\Orleans.EventSourcing.csproj", "{187AB6FA-B34B-482B-AF4F-E0A82C196BEE}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.Serialization.Protobuf", "src\Orleans.Serialization.Protobuf\Orleans.Serialization.Protobuf.csproj", "{CD7707C0-F70A-4121-B980-D4ABD410C5E2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.Serialization.Protobuf", "src\Serializers\Orleans.Serialization.Protobuf\Orleans.Serialization.Protobuf.csproj", "{CD7707C0-F70A-4121-B980-D4ABD410C5E2}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.Serialization.ProtobufNet", "src\Orleans.Serialization.ProtobufNet\Orleans.Serialization.ProtobufNet.csproj", "{2B0F0CB2-D273-4840-9969-2580C804697A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.Serialization.ProtobufNet", "src\Serializers\Orleans.Serialization.ProtobufNet\Orleans.Serialization.ProtobufNet.csproj", "{2B0F0CB2-D273-4840-9969-2580C804697A}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.PowerShell", "src\Orleans.PowerShell\Orleans.PowerShell.csproj", "{E9F3FF2F-E3B6-4227-A91E-3E65BD8AB894}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.Streaming.EventHubs", "src\Azure\Orleans.Streaming.EventHubs\Orleans.Streaming.EventHubs.csproj", "{E6B25995-CDB0-4FAE-BA47-5E629812B300}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.Clustering.ServiceFabric", "src\Orleans.Clustering.ServiceFabric\Orleans.Clustering.ServiceFabric.csproj", "{3D1792C3-935E-4952-AFA1-4D32FEC557FA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.Clustering.ServiceFabric", "src\Azure\Orleans.Clustering.ServiceFabric\Orleans.Clustering.ServiceFabric.csproj", "{3D1792C3-935E-4952-AFA1-4D32FEC557FA}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.TelemetryConsumers.AI", "src\Orleans.TelemetryConsumers.AI\Orleans.TelemetryConsumers.AI.csproj", "{D1037BFE-B0D6-40AA-9D53-8DB9838D2889}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.TelemetryConsumers.AI", "src\TelemetryConsumers\Orleans.TelemetryConsumers.AI\Orleans.TelemetryConsumers.AI.csproj", "{D1037BFE-B0D6-40AA-9D53-8DB9838D2889}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.TelemetryConsumers.Counters", "src\Orleans.TelemetryConsumers.Counters\Orleans.TelemetryConsumers.Counters.csproj", "{2EA4E3CD-60AF-499B-86A5-A2C102C33893}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.TelemetryConsumers.Counters", "src\TelemetryConsumers\Orleans.TelemetryConsumers.Counters\Orleans.TelemetryConsumers.Counters.csproj", "{2EA4E3CD-60AF-499B-86A5-A2C102C33893}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.TelemetryConsumers.NewRelic", "src\Orleans.TelemetryConsumers.NewRelic\Orleans.TelemetryConsumers.NewRelic.csproj", "{F409A36D-3571-470E-980A-3229FC252781}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.TelemetryConsumers.NewRelic", "src\TelemetryConsumers\Orleans.TelemetryConsumers.NewRelic\Orleans.TelemetryConsumers.NewRelic.csproj", "{F409A36D-3571-470E-980A-3229FC252781}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.TestingHost", "src\Orleans.TestingHost\Orleans.TestingHost.csproj", "{9BCF7A12-6A5B-43FF-828A-A804F9B9DBB4}"
 EndProject
@@ -150,7 +150,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.Streaming.AzureStor
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.Hosting.AzureCloudServices", "src\Azure\Orleans.Hosting.AzureCloudServices\Orleans.Hosting.AzureCloudServices.csproj", "{E767F67A-5ABF-4F98-AA20-5A891638C249}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.Hosting.ServiceFabric", "src\Orleans.Hosting.ServiceFabric\Orleans.Hosting.ServiceFabric.csproj", "{1AF48B10-B2CE-4DE9-9A3F-0A656FBF1C02}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.Hosting.ServiceFabric", "src\Azure\Orleans.Hosting.ServiceFabric\Orleans.Hosting.ServiceFabric.csproj", "{1AF48B10-B2CE-4DE9-9A3F-0A656FBF1C02}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.Clustering.DynamoDB", "src\AWS\Orleans.Clustering.DynamoDB\Orleans.Clustering.DynamoDB.csproj", "{B89D0C76-243E-4871-8984-8093EC27DC3B}"
 EndProject
@@ -160,7 +160,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.Reminders.DynamoDB"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.Streaming.SQS", "src\AWS\Orleans.Streaming.SQS\Orleans.Streaming.SQS.csproj", "{DA0FC102-756F-4C1F-8018-FEC5A64F06F6}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.ServiceFabric", "src\Orleans.ServiceFabric\Orleans.ServiceFabric.csproj", "{814FF01E-1466-4A71-A48F-F40143EF49AA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.ServiceFabric", "src\Azure\Orleans.ServiceFabric\Orleans.ServiceFabric.csproj", "{814FF01E-1466-4A71-A48F-F40143EF49AA}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RuntimeCodeGen.Tests", "test\RuntimeCodeGen.Tests\RuntimeCodeGen.Tests.csproj", "{E0B8833A-D96E-4E9D-AC0E-E06ADD2D5ED0}"
 EndProject
@@ -193,6 +193,12 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.TestingHost.Legacy", "test\Orleans.TestingHost.Legacy\Orleans.TestingHost.Legacy.csproj", "{AC640F05-E013-4D80-A1A4-E577D6883D16}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.TestingHost.AppDomain", "test\Orleans.TestingHost.AppDomain\Orleans.TestingHost.AppDomain.csproj", "{DF911257-3617-4B5C-9B78-AED17BA6DC9C}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.Transactions.DynamoDB", "src\AWS\Orleans.Transactions.DynamoDB\Orleans.Transactions.DynamoDB.csproj", "{17A7F27C-DBDE-4339-A7F5-18BD80C3F205}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orleans.Transactions.DynamoDB.Test", "test\Orleans.Transactions.DynamoDB.Test\Orleans.Transactions.DynamoDB.Test.csproj", "{8B3EEA6B-BE00-482D-9625-15A70B534183}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DependencyInjection.Tests", "test\DependencyInjection.Tests\DependencyInjection.Tests.csproj", "{F23930FE-A219-49E1-8ECB-5A94F271EDC1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -1236,6 +1242,42 @@ Global
 		{DF911257-3617-4B5C-9B78-AED17BA6DC9C}.Release|x64.Build.0 = Release|Any CPU
 		{DF911257-3617-4B5C-9B78-AED17BA6DC9C}.Release|x86.ActiveCfg = Release|Any CPU
 		{DF911257-3617-4B5C-9B78-AED17BA6DC9C}.Release|x86.Build.0 = Release|Any CPU
+		{17A7F27C-DBDE-4339-A7F5-18BD80C3F205}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{17A7F27C-DBDE-4339-A7F5-18BD80C3F205}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{17A7F27C-DBDE-4339-A7F5-18BD80C3F205}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{17A7F27C-DBDE-4339-A7F5-18BD80C3F205}.Debug|x64.Build.0 = Debug|Any CPU
+		{17A7F27C-DBDE-4339-A7F5-18BD80C3F205}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{17A7F27C-DBDE-4339-A7F5-18BD80C3F205}.Debug|x86.Build.0 = Debug|Any CPU
+		{17A7F27C-DBDE-4339-A7F5-18BD80C3F205}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{17A7F27C-DBDE-4339-A7F5-18BD80C3F205}.Release|Any CPU.Build.0 = Release|Any CPU
+		{17A7F27C-DBDE-4339-A7F5-18BD80C3F205}.Release|x64.ActiveCfg = Release|Any CPU
+		{17A7F27C-DBDE-4339-A7F5-18BD80C3F205}.Release|x64.Build.0 = Release|Any CPU
+		{17A7F27C-DBDE-4339-A7F5-18BD80C3F205}.Release|x86.ActiveCfg = Release|Any CPU
+		{17A7F27C-DBDE-4339-A7F5-18BD80C3F205}.Release|x86.Build.0 = Release|Any CPU
+		{8B3EEA6B-BE00-482D-9625-15A70B534183}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8B3EEA6B-BE00-482D-9625-15A70B534183}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8B3EEA6B-BE00-482D-9625-15A70B534183}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8B3EEA6B-BE00-482D-9625-15A70B534183}.Debug|x64.Build.0 = Debug|Any CPU
+		{8B3EEA6B-BE00-482D-9625-15A70B534183}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{8B3EEA6B-BE00-482D-9625-15A70B534183}.Debug|x86.Build.0 = Debug|Any CPU
+		{8B3EEA6B-BE00-482D-9625-15A70B534183}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8B3EEA6B-BE00-482D-9625-15A70B534183}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8B3EEA6B-BE00-482D-9625-15A70B534183}.Release|x64.ActiveCfg = Release|Any CPU
+		{8B3EEA6B-BE00-482D-9625-15A70B534183}.Release|x64.Build.0 = Release|Any CPU
+		{8B3EEA6B-BE00-482D-9625-15A70B534183}.Release|x86.ActiveCfg = Release|Any CPU
+		{8B3EEA6B-BE00-482D-9625-15A70B534183}.Release|x86.Build.0 = Release|Any CPU
+		{F23930FE-A219-49E1-8ECB-5A94F271EDC1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F23930FE-A219-49E1-8ECB-5A94F271EDC1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F23930FE-A219-49E1-8ECB-5A94F271EDC1}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F23930FE-A219-49E1-8ECB-5A94F271EDC1}.Debug|x64.Build.0 = Debug|Any CPU
+		{F23930FE-A219-49E1-8ECB-5A94F271EDC1}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F23930FE-A219-49E1-8ECB-5A94F271EDC1}.Debug|x86.Build.0 = Debug|Any CPU
+		{F23930FE-A219-49E1-8ECB-5A94F271EDC1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F23930FE-A219-49E1-8ECB-5A94F271EDC1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F23930FE-A219-49E1-8ECB-5A94F271EDC1}.Release|x64.ActiveCfg = Release|Any CPU
+		{F23930FE-A219-49E1-8ECB-5A94F271EDC1}.Release|x64.Build.0 = Release|Any CPU
+		{F23930FE-A219-49E1-8ECB-5A94F271EDC1}.Release|x86.ActiveCfg = Release|Any CPU
+		{F23930FE-A219-49E1-8ECB-5A94F271EDC1}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -1334,6 +1376,9 @@ Global
 		{262A898E-0EED-4235-908B-322A699CDD01} = {A6573187-FD0D-4DF7-91D1-03E07E470C0A}
 		{AC640F05-E013-4D80-A1A4-E577D6883D16} = {A6573187-FD0D-4DF7-91D1-03E07E470C0A}
 		{DF911257-3617-4B5C-9B78-AED17BA6DC9C} = {A6573187-FD0D-4DF7-91D1-03E07E470C0A}
+		{17A7F27C-DBDE-4339-A7F5-18BD80C3F205} = {DA8E126B-BCDB-4E8F-BFB9-2DBFD41F8F70}
+		{8B3EEA6B-BE00-482D-9625-15A70B534183} = {A6573187-FD0D-4DF7-91D1-03E07E470C0A}
+		{F23930FE-A219-49E1-8ECB-5A94F271EDC1} = {A6573187-FD0D-4DF7-91D1-03E07E470C0A}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {7BFB3429-B5BB-4DB1-95B4-67D77A864952}
