@@ -38,6 +38,7 @@ namespace Orleans.Runtime.LogConsistency
         private readonly MultiClusterConfiguration pseudoMultiClusterConfiguration;
 
         private readonly MultiClusterOptions multiClusterOptions;
+        private readonly IClusterMessageSender messageSender;
 
         public ProtocolServices(
             Grain gr,
@@ -47,7 +48,9 @@ namespace Orleans.Runtime.LogConsistency
             IInternalGrainFactory grainFactory,
             ILocalSiloDetails siloDetails,
             IOptions<MultiClusterOptions> multiClusterOptions,
-            IMultiClusterOracle multiClusterOracle)
+            IMultiClusterOracle multiClusterOracle,
+            IClusterMessageSender messageSender
+            )
         {
             this.grain = gr;
             this.log = loggerFactory.CreateLogger<ProtocolServices>();
@@ -57,6 +60,7 @@ namespace Orleans.Runtime.LogConsistency
             this.multiClusterOracle = multiClusterOracle;
             this.MyClusterId = siloDetails.ClusterId;
             this.multiClusterOptions = multiClusterOptions.Value;
+            this.messageSender = messageSender;
 
             if (!this.multiClusterOptions.HasMultiClusterNetwork)
             {
@@ -64,7 +68,7 @@ namespace Orleans.Runtime.LogConsistency
                 this.pseudoMultiClusterConfiguration = PseudoMultiClusterConfigurations.FindOrCreate(
                     this.MyClusterId,
                     CreatePseudoConfig);
-            }
+            }            
         }
         
         public IMultiClusterRegistrationStrategy RegistrationStrategy { get; }
@@ -98,22 +102,14 @@ namespace Orleans.Runtime.LogConsistency
                 log.Trace("Available Gateways:\n{0}", string.Join("\n", gws.Select((gw) => gw.ToString())));
             }
 
-            var clusterGateway = this.multiClusterOracle.GetRandomClusterGateway(clusterId);
-
-            if (clusterGateway == null)
-                throw new ProtocolTransportException("no active gateways found for cluster");
-
-            var repAgent = this.grainFactory.GetSystemTarget<ILogConsistencyProtocolGateway>(Constants.ProtocolGatewayId, clusterGateway);
-
             // test hook
             var filter = (this.multiClusterOracle as MultiClusterOracle)?.ProtocolMessageFilterForTesting;
             if (filter != null && !filter(payload))
                 return null;
-
+ 
             try
             {
-                var retMessage = await repAgent.RelayMessage(GrainReference.GrainId, payload);
-                return retMessage;
+                return await this.messageSender.SendToRemoteCluster(clusterId, GrainReference.GrainId.ToParsableString(), payload);
             }
             catch (Exception e)
             {

@@ -128,6 +128,7 @@ namespace Orleans.Hosting
             services.TryAddSingleton<MultiClusterOracle>();
             services.TryAddSingleton<MultiClusterRegistrationStrategyManager>();
             services.TryAddFromExisting<IMultiClusterOracle, MultiClusterOracle>();
+            services.TryAddSingleton<IClusterMessageSender, GatewayClusterMessageSender>();            
             services.TryAddSingleton<DeploymentLoadPublisher>();
 
             services.TryAddSingleton<MembershipOracle>();

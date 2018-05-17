@@ -28,6 +28,7 @@ using Orleans.Versions;
 using Orleans.ApplicationParts;
 using Orleans.Configuration;
 using Orleans.Serialization;
+using Orleans.SystemTargetInterfaces;
 
 namespace Orleans.Runtime
 {
@@ -66,6 +67,7 @@ namespace Orleans.Runtime
         private readonly SiloStatisticsManager siloStatistics;
         private readonly InsideRuntimeClient runtimeClient;
         private IReminderService reminderService;
+        private ProtocolGateway protocolGateway;
         private SystemTarget fallbackScheduler;
         private readonly IMembershipOracle membershipOracle;
         private readonly IMultiClusterOracle multiClusterOracle;
@@ -282,8 +284,9 @@ namespace Orleans.Runtime
             RegisterSystemTarget(siloControl);
 
             logger.Debug("Creating {0} System Target", "ProtocolGateway");
-            RegisterSystemTarget(new ProtocolGateway(this.SiloAddress, this.loggerFactory));
-
+            this.protocolGateway = new ProtocolGateway(this.SiloAddress, this.loggerFactory, this.Services.GetService<IClusterMessageReceiver>());
+            RegisterSystemTarget(this.protocolGateway);
+            
             logger.Debug("Creating {0} System Target", "DeploymentLoadPublisher");
             RegisterSystemTarget(Services.GetRequiredService<DeploymentLoadPublisher>());
             
@@ -483,6 +486,9 @@ namespace Orleans.Runtime
                         .WithTimeout(initTimeout, $"Starting MultiClusterOracle failed due to timeout {initTimeout}");
                     logger.Debug("multicluster oracle created successfully.");
                 }
+
+                await scheduler.QueueTask(() => protocolGateway.StartReceivers(this.siloDetails.ClusterId), this.protocolGateway.SchedulingContext)
+                        .WithTimeout(initTimeout, $"Starting ProtocolGateway failed due to timeout {initTimeout}");                
             }
 
             try
@@ -789,6 +795,11 @@ namespace Orleans.Runtime
                 // 2: Stop reminder service
                 await scheduler.QueueTask(reminderService.Stop, this.reminderServiceContext)
                     .WithTimeout(stopTimeout, $"Stopping ReminderService failed due to timeout {stopTimeout}");
+            }
+            if (protocolGateway != null)
+            {
+                await scheduler.QueueTask(protocolGateway.StopReceivers, this.protocolGateway.SchedulingContext)
+                    .WithTimeout(stopTimeout, $"Stopping ProtocolGateway failed due to timeout {stopTimeout}");
             }
             foreach (var grainService in grainServices)
             {

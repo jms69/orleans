@@ -17,6 +17,10 @@ namespace Orleans.SystemTargetInterfaces
     internal interface ILogConsistencyProtocolGateway : ISystemTarget
     {
         Task<ILogConsistencyProtocolMessage> RelayMessage(GrainId id, ILogConsistencyProtocolMessage payload);
+
+        Task StartReceivers(string myClusterId);
+
+        Task StopReceivers();
     }
 
 }
