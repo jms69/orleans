@@ -1,8 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
-using Orleans.Hosting;
-using Orleans.Runtime.Configuration;
+using Orleans.Configuration;
 
 namespace Orleans.Runtime.GrainDirectory
 {
@@ -24,7 +23,7 @@ namespace Orleans.Runtime.GrainDirectory
             }
         }
 
-        internal static AsynchAgent CreateGrainDirectoryCacheMaintainer(
+        internal static DedicatedAsynchAgent CreateGrainDirectoryCacheMaintainer(
             LocalGrainDirectory router,
             IGrainDirectoryCache<TValue> cache,
             Func<List<ActivationAddress>, TValue> updateFunc,

@@ -1,12 +1,18 @@
-using Orleans.Runtime;
 using System;
 using System.Collections.Generic;
+using Orleans.Runtime;
 
-namespace Orleans.Configuration.Options
+namespace Orleans.Configuration
 {
+    /// <summary>
+    /// Telemetry consumer settings
+    /// </summary>
     public class TelemetryOptions
     {
-        internal IList<Type> Consumers { get; set; } = new List<Type>();
+        /// <summary>
+        /// Configured telemetry consumers
+        /// </summary>
+        public IList<Type> Consumers { get; set; } = new List<Type>();
     }
 
     public static class TelemetryOptionsExtensions

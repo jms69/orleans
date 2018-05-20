@@ -1,19 +1,17 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Orleans;
 using Orleans.Runtime;
-using Orleans.Runtime.Configuration;
 using TestExtensions;
 using UnitTests.MembershipTests;
 using Xunit;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Orleans.Configuration;
 using Orleans.TestingHost.Utils;
-using Orleans.Hosting;
 
 namespace UnitTests.RemindersTest
 {
@@ -25,33 +23,25 @@ namespace UnitTests.RemindersTest
 
         private readonly IReminderTable remindersTable;
         protected ILoggerFactory loggerFactory;
-        protected IOptions<SiloOptions> siloOptions;
-        protected IOptions<StorageOptions> storageOptions;
-        protected IOptions<AdoNetOptions> adoNetOptions;
+        protected IOptions<ClusterOptions> clusterOptions;
+
+        protected ConnectionStringFixture connectionStringFixture;
+
         protected const string testDatabaseName = "OrleansReminderTest";//for relational storage
 
         protected ReminderTableTestsBase(ConnectionStringFixture fixture, TestEnvironmentFixture clusterFixture, LoggerFilterOptions filters)
         {
+            this.connectionStringFixture = fixture;
             fixture.InitializeConnectionStringAccessor(GetConnectionString);
             loggerFactory = TestingUtils.CreateDefaultLoggerFactory($"{this.GetType()}.log", filters);
             this.ClusterFixture = clusterFixture;
             logger = loggerFactory.CreateLogger<ReminderTableTestsBase>();
-            var serviceId = Guid.NewGuid();
+            var serviceId = Guid.NewGuid().ToString();
             var clusterId = "test-" + serviceId;
 
             logger.Info("ClusterId={0}", clusterId);
-            this.siloOptions = Options.Create(new SiloOptions { ClusterId = clusterId, ServiceId = serviceId });
-            this.storageOptions = Options.Create(new StorageOptions { DataConnectionStringForReminders = fixture.ConnectionString });
-            this.adoNetOptions = Options.Create(new AdoNetOptions() { InvariantForReminders = GetAdoInvariant() });
-
-            var globalConfiguration = new GlobalConfiguration
-            {
-                ServiceId = serviceId,
-                ClusterId = clusterId,
-                AdoInvariantForReminders = GetAdoInvariant(),
-                DataConnectionStringForReminders = fixture.ConnectionString
-            };
-
+            this.clusterOptions = Options.Create(new ClusterOptions { ClusterId = clusterId, ServiceId = serviceId });
+            
             var rmndr = CreateRemindersTable();
             rmndr.Init().WithTimeout(TimeSpan.FromMinutes(1)).Wait();
             remindersTable = rmndr;

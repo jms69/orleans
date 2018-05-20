@@ -5,8 +5,9 @@ using System.Threading.Tasks;
 using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Orleans.Configuration;
 using Orleans.Runtime;
-using Orleans.Runtime.Configuration;
 using Orleans.Streams;
 
 namespace Orleans
@@ -35,16 +36,15 @@ namespace Orleans
         /// Initializes a new instance of the <see cref="ClusterClient"/> class.
         /// </summary>
         /// <param name="runtimeClient">The runtime client.</param>
-        /// <param name="configuration">The client configuration.</param>
         /// <param name="loggerFactory">Logger factory used to create loggers</param>
-        public ClusterClient(OutsideRuntimeClient runtimeClient, ClientConfiguration configuration, ILoggerFactory loggerFactory)
+        /// <param name="clientMessagingOptions">Messaging parameters</param>
+        public ClusterClient(OutsideRuntimeClient runtimeClient, ILoggerFactory loggerFactory, IOptions<ClientMessagingOptions> clientMessagingOptions)
         {
-            this.Configuration = configuration;
             this.runtimeClient = runtimeClient;
-            this.clusterClientLifecycle = new ClusterClientLifecycle(loggerFactory);
+            this.clusterClientLifecycle = new ClusterClientLifecycle(loggerFactory.CreateLogger<LifecycleSubject>());
 
             //set PropagateActivityId flag from node cofnig
-            RequestContext.PropagateActivityId = configuration.PropagateActivityId;
+            RequestContext.PropagateActivityId = clientMessagingOptions.Value.PropagateActivityId;
 
             // register all lifecycle participants
             IEnumerable<ILifecycleParticipant<IClusterClientLifecycle>> lifecycleParticipants = this.ServiceProvider.GetServices<ILifecycleParticipant<IClusterClientLifecycle>>();
@@ -71,9 +71,6 @@ namespace Orleans
 
         /// <inheritdoc />
         public IServiceProvider ServiceProvider => this.runtimeClient.ServiceProvider;
-        
-        /// <inheritdoc />
-        public ClientConfiguration Configuration { get; }
 
         /// <inheritdoc />
         IStreamProviderRuntime IInternalClusterClient.StreamProviderRuntime => this.runtimeClient.CurrentStreamProviderRuntime;
@@ -107,7 +104,7 @@ namespace Orleans
         }
 
         /// <inheritdoc />
-        public async Task Connect()
+        public async Task Connect(Func<Exception, Task<bool>> retryFilter = null)
         {
             this.ThrowIfDisposedOrAlreadyInitialized();
             using (await this.initLock.LockAsync().ConfigureAwait(false))
@@ -119,8 +116,8 @@ namespace Orleans
                 }
                 
                 this.state = LifecycleState.Starting;
-                await this.runtimeClient.Start().ConfigureAwait(false);
-                await this.clusterClientLifecycle.OnStart();
+                await this.runtimeClient.Start(retryFilter).ConfigureAwait(false);
+                await this.clusterClientLifecycle.OnStart().ConfigureAwait(false);
                 this.state = LifecycleState.Started;
             }
         }

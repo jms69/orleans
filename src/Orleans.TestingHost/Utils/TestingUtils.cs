@@ -81,12 +81,16 @@ namespace Orleans.TestingHost.Utils
             Func<Task> loop =
                 async () =>
                 {
+                    bool passed;
                     do
                     {
                         // need to wait a bit to before re-checking the condition.
                         await Task.Delay(TimeSpan.FromSeconds(1));
+                        passed = await predicate(false);
                     }
-                    while (!await predicate(!keepGoing[0]) && keepGoing[0]);
+                    while (!passed && keepGoing[0]);
+                    if(!passed)
+                        await predicate(true);
                 };
 
             var task = loop();
@@ -117,34 +121,6 @@ namespace Orleans.TestingHost.Utils
             ServicePointManager.Expect100Continue = false;
             ServicePointManager.DefaultConnectionLimit = numDotNetPoolThreads; // 1000;
             ServicePointManager.UseNagleAlgorithm = false;
-        }
-
-        /// <summary> Try to complete the task in a given time </summary>
-        /// <param name="taskToComplete">The task to run</param>
-        /// <param name="timeout">The timeout value</param>
-        /// <param name="message">The message to put in the TimeoutException if the task didn't complete in the given time</param>
-        /// <exception cref="TimeoutException">If the task didn't complete in the given time</exception>
-        public static async Task WithTimeout(this Task taskToComplete, TimeSpan timeout, string message)
-        {
-            if (taskToComplete.IsCompleted)
-            {
-                await taskToComplete;
-                return;
-            }
-
-            await Task.WhenAny(taskToComplete, Task.Delay(timeout));
-
-            // We got done before the timeout, or were able to complete before this code ran, return the result
-            if (taskToComplete.IsCompleted)
-            {
-                // Await this so as to propagate the exception correctly
-                await taskToComplete;
-                return;
-            }
-
-            // We did not complete before the timeout, we fire and forget to ensure we observe any exceptions that may occur
-            taskToComplete.Ignore();
-            throw new TimeoutException(message);
         }
 
         /// <summary> Serialize and deserialize the input </summary>

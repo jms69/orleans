@@ -391,8 +391,9 @@ namespace Orleans
         LifecycleStartFailure           = SiloBase + 50,
         LifecycleStopFailure            = SiloBase + 51,
         SiloStartPerfMeasure            = SiloBase + 52,
+        LifecycleStagesReport           = SiloBase + 53,
 
-        CatalogBase                     = Runtime + 500,
+        CatalogBase = Runtime + 500,
         CatalogNonExistingActivation1   = CatalogBase + 1,
         Catalog_UnregisterManyAsync     = CatalogBase + 2,
         Catalog_DestroyActivations       = CatalogBase + 3,
@@ -646,7 +647,7 @@ namespace Orleans
         WaitCalledInsideGrain                   = SchedulerBase + 9,
         SchedulerStatus                         = SchedulerBase + 10,
         WaitCalledInServerCode                  = SchedulerBase + 11,
-        SchedulerTurnTooLong                    = SchedulerBase + 12,
+        ExecutorTurnTooLong                     = SchedulerBase + 12,
         SchedulerTooManyPendingItems            = SchedulerBase + 13,
         SchedulerTurnTooLong2                   = SchedulerBase + 14,
         SchedulerTurnTooLong3                   = SchedulerBase + 15,
@@ -664,9 +665,10 @@ namespace Orleans
         SchedulerTaskExecuteIncomplete3         = SchedulerBase + 27,
         SchedulerTaskExecuteIncomplete4         = SchedulerBase + 28,
         SchedulerTaskWaitIncomplete             = SchedulerBase + 29,
-        SchedulerWorkerThreadExc                = SchedulerBase + 30,
+        ExecutorWorkerThreadExc                 = SchedulerBase + 30,
         SchedulerQueueWorkItemWrongContext      = SchedulerBase + 31,
         SchedulerAppTurnsStopped_2              = SchedulerBase + 32,
+        ExecutorProcessingError                 = SchedulerBase + 33,
 
         GatewayBase                             = Runtime + 1300,
         GatewayClientOpenedSocket               = GatewayBase + 1,
@@ -837,7 +839,6 @@ namespace Orleans
         Watchdog_HealthCheckFailure             = WatchdogBase + 3,
 
         LoggerBase                              = Runtime + 2700,
-        Logger_MiniDumpCreated                  = Runtime_Error_100001, // Backward compatability
         Logger_ProcessCrashing                  = Runtime_Error_100002, // Backward compatability
         Logger_LogMessageTruncated              = LoggerBase + 1,
 
@@ -917,6 +918,7 @@ namespace Orleans
         Provider_ProviderNotControllable        = ProviderManagerBase + 16,
         Provider_CatalogNoLogConsistencyProvider       = ProviderManagerBase + 17,
         Provider_CatalogLogConsistencyProviderAllocated = ProviderManagerBase + 18,
+        Provider_ErrorFromClose                  = ProviderManagerBase + 19,
 
         PersistentStreamPullingAgentBase = Runtime + 3300,
         PersistentStreamPullingAgent_01 = PersistentStreamPullingAgentBase + 1,
@@ -1022,6 +1024,7 @@ namespace Orleans
 
         TypeManagerBase = Runtime + 4200,
         TypeManager_GetSiloGrainInterfaceMapError = TypeManagerBase + 1,
+        TypeManager_GetClusterGrainTypeResolverError = TypeManagerBase + 2,
 
         LogConsistencyBase = Runtime + 4300,
         LogConsistency_UserCodeException = LogConsistencyBase + 1,

@@ -66,6 +66,7 @@ namespace Orleans.AzureUtils
         /// <param name="visibilityTimeout">A TimeSpan specifying the visibility timeout interval</param>
         public AzureQueueDataManager(ILoggerFactory loggerFactory, string queueName, string storageConnectionString, TimeSpan? visibilityTimeout = null)
         {
+            queueName = SanitizeQueueName(queueName);
             ValidateQueueName(queueName);
 
             logger = loggerFactory.CreateLogger<AzureQueueDataManager>();
@@ -84,16 +85,15 @@ namespace Orleans.AzureUtils
         /// Constructor.
         /// </summary>
         /// <param name="queueName">Name of the queue to be connected to.</param>
-        /// <param name="deploymentId">The deployment id of the Azure service hosting this silo. It will be concatenated to the queueName.</param>
+        /// <param name="serviceId">The service id of the silo. It will be concatenated to the queueName.</param>
         /// <param name="storageConnectionString">Connection string for the Azure storage account used to host this table.</param>
         /// <param name="visibilityTimeout">A TimeSpan specifying the visibility timeout interval</param>
         /// <param name="loggerFactory">logger factory used to create loggers</param>
-        public AzureQueueDataManager(ILoggerFactory loggerFactory, string queueName, string deploymentId, string storageConnectionString, TimeSpan? visibilityTimeout = null)
+        public AzureQueueDataManager(ILoggerFactory loggerFactory, string queueName, string serviceId, string storageConnectionString, TimeSpan? visibilityTimeout = null)
         {
-            ValidateQueueName(queueName);
-            
             logger = loggerFactory.CreateLogger<AzureQueueDataManager>();
-            QueueName = deploymentId + "-" + queueName;
+            QueueName = serviceId + "-" + queueName;
+            QueueName = SanitizeQueueName(QueueName);
             ValidateQueueName(QueueName);
             connectionString = storageConnectionString;
             messageVisibilityTimeout = visibilityTimeout;
@@ -371,6 +371,24 @@ namespace Orleans.AzureUtils
                 logger.Error((int)AzureQueueErrorCode.AzureQueue_14, String.Format("Error creating GetCloudQueueOperationsClient."), exc);
                 throw;
             }
+        }
+
+        private string SanitizeQueueName(string queueName)
+        {
+            var tmp = queueName;
+            //Azure queue naming rules : https://docs.microsoft.com/en-us/rest/api/storageservices/Naming-Queues-and-Metadata?redirectedfrom=MSDN
+            tmp = tmp.ToLowerInvariant();
+            tmp = tmp
+                .Replace('/', '-') // Forward slash
+                .Replace('\\', '-') // Backslash
+                .Replace('#', '-') // Pound sign
+                .Replace('?', '-') // Question mark
+                .Replace('&', '-')
+                .Replace('+', '-')
+                .Replace(':', '-')
+                .Replace('.', '-')
+                .Replace('%', '-');
+            return tmp;
         }
 
         private void ValidateQueueName(string queueName)

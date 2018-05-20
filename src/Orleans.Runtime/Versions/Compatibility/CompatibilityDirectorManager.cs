@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Options;
-using Orleans.Hosting;
+using Orleans.Configuration;
 using Orleans.Versions.Compatibility;
 
 namespace Orleans.Runtime.Versions.Compatibility
@@ -15,7 +15,7 @@ namespace Orleans.Runtime.Versions.Compatibility
         public ICompatibilityDirector Default { get; private set; }
 
 
-        public CompatibilityDirectorManager(IServiceProvider serviceProvider, IOptions<VersioningOptions> options)
+        public CompatibilityDirectorManager(IServiceProvider serviceProvider, IOptions<GrainVersioningOptions> options)
         {
             this.serviceProvider = serviceProvider;
             this.strategyFromConfig = serviceProvider.GetRequiredServiceByName<CompatibilityStrategy>(options.Value.DefaultCompatibilityStrategy);

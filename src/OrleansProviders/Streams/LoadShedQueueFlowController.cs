@@ -1,8 +1,7 @@
 
 using System;
-using Orleans.Hosting;
+using Orleans.Configuration;
 using Orleans.Runtime;
-using Orleans.Runtime.Configuration;
 
 namespace Orleans.Streams
 {
@@ -12,7 +11,7 @@ namespace Orleans.Streams
     /// </summary>
     public class LoadShedQueueFlowController : IQueueFlowController
     {
-        private readonly SiloStatisticsOptions options;
+        private readonly LoadSheddingOptions options;
         private readonly double loadSheddingLimit;
         private FloatValueStatistic cpuStatistic;
 
@@ -24,7 +23,7 @@ namespace Orleans.Streams
         /// <param name="options">The silo satistics options.</param>
         /// <param name="percentOfSiloSheddingLimit">Percentage of load shed limit which triggers a reduction of queue read rate.</param>
         /// <returns></returns>
-        public static IQueueFlowController CreateAsPercentOfLoadSheddingLimit(SiloStatisticsOptions options, int percentOfSiloSheddingLimit = SiloStatisticsOptions.DEFAULT_LOAD_SHEDDING_LIMIT)
+        public static IQueueFlowController CreateAsPercentOfLoadSheddingLimit(LoadSheddingOptions options, int percentOfSiloSheddingLimit = LoadSheddingOptions.DEFAULT_LOAD_SHEDDING_LIMIT)
         {
             if (percentOfSiloSheddingLimit < 0.0 || percentOfSiloSheddingLimit > 100.0) throw new ArgumentOutOfRangeException(nameof(percentOfSiloSheddingLimit), "Percent value must be between 0-100");
             // Start shedding before silo reaches shedding limit.
@@ -38,7 +37,7 @@ namespace Orleans.Streams
         /// <param name="loadSheddingLimit">Percentage of CPU which triggers queue read rate reduction</param>
         /// <param name="options">The silo satistics options.</param>
         /// <returns></returns>
-        public static IQueueFlowController CreateAsPercentageOfCPU(int loadSheddingLimit, SiloStatisticsOptions options)
+        public static IQueueFlowController CreateAsPercentageOfCPU(int loadSheddingLimit, LoadSheddingOptions options)
         {
             if (loadSheddingLimit < 0 || loadSheddingLimit > 100) throw new ArgumentOutOfRangeException(nameof(loadSheddingLimit), "Value must be between 0-100");
             return new LoadShedQueueFlowController(loadSheddingLimit, options);
@@ -48,8 +47,8 @@ namespace Orleans.Streams
         /// Constructor
         /// </summary>
         /// <param name="loadSheddingLimit"></param>
-        /// <param name="getNodeConfig">The method used to get the current node configuration.</param>
-        private LoadShedQueueFlowController(int loadSheddingLimit, SiloStatisticsOptions options)
+        /// <param name="options"></param>
+        private LoadShedQueueFlowController(int loadSheddingLimit, LoadSheddingOptions options)
         {
             this.options = options;
             if (loadSheddingLimit < 0 || loadSheddingLimit > 100) throw new ArgumentOutOfRangeException(nameof(loadSheddingLimit), "Value must be between 0-100");

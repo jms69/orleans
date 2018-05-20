@@ -1,12 +1,15 @@
 using System;
-using System.IO;
+using System.Linq;
+using System.Net;
+using System.Collections.Generic;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Orleans.Configuration;
-using Orleans.Configuration.Options;
 using Orleans.Hosting;
-using Orleans.Runtime.Configuration;
 using Orleans.ApplicationParts;
+using Orleans.CodeGeneration;
+using Orleans.Messaging;
 using Orleans.Runtime;
 
 namespace Orleans
@@ -20,8 +23,7 @@ namespace Orleans
         /// Configures default client services.
         /// </summary>
         /// <param name="builder">The host builder.</param>
-        /// <param name="siloName">The silo name.</param>
-        /// <returns>The silo builder.</returns>
+        /// <returns>The client builder.</returns>
         public static IClientBuilder ConfigureDefaults(this IClientBuilder builder)
         {
             // Configure the container to use an Orleans client.
@@ -36,66 +38,70 @@ namespace Orleans
             });
             return builder;
         }
-
         /// <summary>
-        /// Loads configuration from the standard client configuration locations.
+        /// Specify the environment to be used by the host.
         /// </summary>
-        /// <param name="builder">The builder.</param>
-        /// <remarks>
-        /// This method loads the first client configuration file it finds, searching predefined directories for predefined file names.
-        /// The following file names are tried in order:
-        /// <list type="number">
-        ///     <item>ClientConfiguration.xml</item>
-        ///     <item>OrleansClientConfiguration.xml</item>
-        ///     <item>Client.config</item>
-        ///     <item>Client.xml</item>
-        /// </list>
-        /// The following directories are searched in order:
-        /// <list type="number">
-        ///     <item>The directory of the executing assembly.</item>
-        ///     <item>The approot directory.</item>
-        ///     <item>The current working directory.</item>
-        ///     <item>The parent of the current working directory.</item>
-        /// </list>
-        /// Each directory is searched for all configuration file names before proceeding to the next directory.
-        /// </remarks>
-        /// <returns>The builder.</returns>
-        public static IClientBuilder LoadConfiguration(this IClientBuilder builder)
+        /// <param name="hostBuilder">The host builder to configure.</param>
+        /// <param name="environment">The environment to host the application in.</param>
+        /// <returns>The host builder.</returns>
+        public static IClientBuilder UseEnvironment(this IClientBuilder hostBuilder, string environment)
         {
-            builder.UseConfiguration(ClientConfiguration.StandardLoad());
-            return builder;
-        }
-
-        /// <summary>
-        /// Loads configuration from the provided location.
-        /// </summary>
-        /// <param name="builder">The builder.</param>
-        /// <param name="configurationFilePath"></param>
-        /// <returns>The builder.</returns>
-        public static IClientBuilder LoadConfiguration(this IClientBuilder builder, string configurationFilePath)
-        {
-            builder.LoadConfiguration(new FileInfo(configurationFilePath));
-            return builder;
-        }
-
-        /// <summary>
-        /// Loads configuration from the provided location.
-        /// </summary>
-        /// <param name="builder">The builder.</param>
-        /// <param name="configurationFile"></param>
-        /// <returns>The builder.</returns>
-        public static IClientBuilder LoadConfiguration(this IClientBuilder builder, FileInfo configurationFile)
-        {
-            var config = ClientConfiguration.LoadFromFile(configurationFile.FullName);
-            if (config == null)
+            return hostBuilder.ConfigureHostConfiguration(configBuilder =>
             {
-                throw new ArgumentException(
-                    $"Error loading client configuration file {configurationFile.FullName}",
-                    nameof(configurationFile));
-            }
+                configBuilder.AddInMemoryCollection(new[]
+                {
+                    new KeyValuePair<string, string>(HostDefaults.EnvironmentKey,
+                        environment  ?? throw new ArgumentNullException(nameof(environment)))
+                });
+            });
+        }
 
-            builder.UseConfiguration(config);
-            return builder;
+        /// <summary>
+        /// Adds services to the container. This can be called multiple times and the results will be additive.
+        /// </summary>
+        /// <param name="hostBuilder">The <see cref="IClientBuilder" /> to configure.</param>
+        /// <param name="configureDelegate"></param>
+        /// <returns>The same instance of the <see cref="IClientBuilder"/> for chaining.</returns>
+        public static IClientBuilder ConfigureServices(this IClientBuilder hostBuilder, Action<IServiceCollection> configureDelegate)
+        {
+            return hostBuilder.ConfigureServices((context, collection) => configureDelegate(collection));
+        }
+
+        /// <summary>
+        /// Sets up the configuration for the remainder of the build process and application. This can be called multiple times and
+        /// the results will be additive. The results will be available at <see cref="HostBuilderContext.Configuration"/> for
+        /// subsequent operations./>.
+        /// </summary>
+        /// <param name="hostBuilder">The host builder to configure.</param>
+        /// <param name="configureDelegate"></param>
+        /// <returns>The same instance of the host builder for chaining.</returns>
+        public static IClientBuilder ConfigureAppConfiguration(this IClientBuilder hostBuilder, Action<IConfigurationBuilder> configureDelegate)
+        {
+            return hostBuilder.ConfigureAppConfiguration((context, builder) => configureDelegate(builder));
+        }
+
+        /// <summary>
+        /// Registers an action used to configure a particular type of options.
+        /// </summary>
+        /// <typeparam name="TOptions">The options type to be configured.</typeparam>
+        /// <param name="builder">The host builder.</param>
+        /// <param name="configureOptions">The action used to configure the options.</param>
+        /// <returns>The client builder.</returns>
+        public static IClientBuilder Configure<TOptions>(this IClientBuilder builder, Action<TOptions> configureOptions) where TOptions : class
+        {
+            return builder.ConfigureServices(services => services.Configure(configureOptions));
+        }
+
+        /// <summary>
+        /// Registers a configuration instance which <typeparamref name="TOptions"/> will bind against.
+        /// </summary>
+        /// <typeparam name="TOptions">The options type to be configured.</typeparam>
+        /// <param name="builder">The host builder.</param>
+        /// <param name="configuration">The configuration.</param>
+        /// <returns>The client builder.</returns>
+        public static IClientBuilder Configure<TOptions>(this IClientBuilder builder, IConfiguration configuration) where TOptions : class
+        {
+            return builder.ConfigureServices(services => services.AddOptions<TOptions>().Bind(configuration));
         }
 
         /// <summary>
@@ -155,24 +161,96 @@ namespace Orleans
         }
 
         /// <summary>
-        /// Configure the client to use <see cref="StaticGatewayListProvider"/>
+        /// Configures the client to connect to a silo on the localhost.
         /// </summary>
         /// <param name="builder"></param>
-        /// <param name="configureOptions"></param>
-        /// <returns></returns>
-        public static IClientBuilder UseStaticGatewayListProvider(this IClientBuilder builder, Action<StaticGatewayListProviderOptions> configureOptions)
+        /// <param name="gatewayPort">The local silo's gateway port.</param>
+        /// <param name="serviceId">The service id.</param>
+        /// <param name="clusterId">The cluster id.</param>
+        public static IClientBuilder UseLocalhostClustering(
+            this IClientBuilder builder,
+            int gatewayPort = 30000,
+            string serviceId = ClusterOptions.DevelopmentServiceId,
+            string clusterId = ClusterOptions.DevelopmentClusterId)
         {
-            return builder.ConfigureServices(collection =>
-                collection.UseStaticGatewayListProvider(configureOptions));
+            return builder.UseLocalhostClustering(new [] {gatewayPort}, serviceId, clusterId);
         }
 
         /// <summary>
-        /// Configure the client to use <see cref="StaticGatewayListProvider"/>
+        /// Configures the client to connect to a silo on the localhost.
         /// </summary>
-        public static IClientBuilder UseStaticGatewayListProvider(this IClientBuilder builder, Action<OptionsBuilder<StaticGatewayListProviderOptions>> configureOptions)
+        /// <param name="builder"></param>
+        /// <param name="gatewayPorts">The local silo gateway ports.</param>
+        /// <param name="serviceId">The service id.</param>
+        /// <param name="clusterId">The cluster id.</param>
+        public static IClientBuilder UseLocalhostClustering(this IClientBuilder builder,
+            int[] gatewayPorts,
+            string serviceId = ClusterOptions.DevelopmentServiceId,
+            string clusterId = ClusterOptions.DevelopmentClusterId)
         {
-            return builder.ConfigureServices(collection =>
-                collection.UseStaticGatewayListProvider(configureOptions));
+            return builder.UseStaticClustering(gatewayPorts.Select(p => new IPEndPoint(IPAddress.Loopback, p)).ToArray())
+                .ConfigureServices(services =>
+                {
+                    // If the caller did not override service id or cluster id, configure default values as a fallback.
+                    if (string.Equals(serviceId, ClusterOptions.DevelopmentServiceId) && string.Equals(clusterId, ClusterOptions.DevelopmentClusterId))
+                    {
+                        services.PostConfigure<ClusterOptions>(options =>
+                        {
+                            if (string.IsNullOrWhiteSpace(options.ClusterId)) options.ClusterId = ClusterOptions.DevelopmentClusterId;
+                            if (string.IsNullOrWhiteSpace(options.ServiceId)) options.ServiceId = ClusterOptions.DevelopmentServiceId;
+                        });
+                    }
+                    else
+                    {
+                        services.Configure<ClusterOptions>(options =>
+                        {
+                            options.ServiceId = serviceId;
+                            options.ClusterId = clusterId;
+                        });
+                    }
+                });
+        }
+
+        /// <summary>
+        /// Configures the client to use static clustering.
+        /// </summary>
+        /// <param name="builder"></param>
+        /// <param name="endpoints">The gateway endpoints.</param>
+        public static IClientBuilder UseStaticClustering(this IClientBuilder builder, params IPEndPoint[] endpoints)
+        {
+            return builder.UseStaticClustering(options => options.Gateways = endpoints.Select(ep => ep.ToGatewayUri()).ToList());
+        }
+
+        /// <summary>
+        /// Configures the client to use static clustering.
+        /// </summary>
+        public static IClientBuilder UseStaticClustering(this IClientBuilder builder, Action<StaticGatewayListProviderOptions> configureOptions)
+        {
+            return builder.ConfigureServices(
+                collection =>
+                {
+                    if (configureOptions != null)
+                    {
+                        collection.Configure(configureOptions);
+                    }
+
+                    collection.AddSingleton<IGatewayListProvider, StaticGatewayListProvider>()
+                        .ConfigureFormatter<StaticGatewayListProviderOptions>();
+                });
+        }
+
+        /// <summary>
+        /// Configures the client to use static clustering.
+        /// </summary>
+        public static IClientBuilder UseStaticClustering(this IClientBuilder builder, Action<OptionsBuilder<StaticGatewayListProviderOptions>> configureOptions)
+        {
+            return builder.ConfigureServices(
+                collection =>
+                {
+                    configureOptions?.Invoke(collection.AddOptions<StaticGatewayListProviderOptions>());
+                    collection.AddSingleton<IGatewayListProvider, StaticGatewayListProvider>()
+                        .ConfigureFormatter<StaticGatewayListProviderOptions>();
+                });
         }
 
         /// <summary>
@@ -201,41 +279,6 @@ namespace Orleans
             }
 
             configure(builder.GetApplicationPartManager());
-            return builder;
-        }
-
-        /// <summary>
-        /// Configures the cluster client general options.
-        /// </summary>
-        /// <param name="builder">The builder.</param>
-        /// <param name="configureOptions">The delegate that configures the options.</param>
-        /// <returns>The same instance of the <see cref="IClientBuilder"/> for chaining.</returns>
-        public static IClientBuilder ConfigureClusterClient(this IClientBuilder builder, Action<ClusterClientOptions> configureOptions)
-        {
-            if (configureOptions != null)
-            {
-                builder.ConfigureServices(services => services.Configure<ClusterClientOptions>(configureOptions));
-            }
-
-            return builder;
-        }
-
-        /// <summary>
-        /// Configures the cluster client general options.
-        /// </summary>
-        /// <param name="builder">The builder.</param>
-        /// <param name="configureOptions">The delegate that configures the options using the options builder.</param>
-        /// <returns>The same instance of the <see cref="IClientBuilder"/> for chaining.</returns>
-        public static IClientBuilder ConfigureClusterClient(this IClientBuilder builder, Action<OptionsBuilder<ClusterClientOptions>> configureOptions)
-        {
-            if (configureOptions != null)
-            {
-                builder.ConfigureServices(services =>
-                {
-                    configureOptions.Invoke(services.AddOptions<ClusterClientOptions>());
-                });
-            }
-
             return builder;
         }
     }

@@ -19,14 +19,14 @@ namespace Orleans.Clustering.AzureStorage
 namespace Orleans.Persistence.AzureStorage
 #elif ORLEANS_REMINDERS
 namespace Orleans.Reminders.AzureStorage
-#elif ORLEANS_STATISTICS
-namespace Orleans.Statistics.AzureStorage
 #elif ORLEANS_STREAMING
 namespace Orleans.Streaming.AzureStorage
 #elif ORLEANS_EVENTHUBS
 namespace Orleans.Streaming.EventHubs
 #elif TESTER_AZUREUTILS
 namespace Orleans.Tests.AzureUtils
+#elif ORLEANS_TRANSACTIONS
+namespace Orleans.Transactions.AzureStorage
 #else
 // No default namespace intentionally to cause compile errors if something is not defined
 #endif
@@ -51,7 +51,11 @@ namespace Orleans.Tests.AzureUtils
 
         private CloudTable tableReference;
 
+        public CloudTable Table => tableReference;
+
+#if !ORLEANS_TRANSACTIONS
         private readonly CounterStatistic numServerBusy = CounterStatistic.FindOrCreate(StatisticNames.AZURE_SERVER_BUSY, true);
+#endif
 
         /// <summary>
         /// Constructor
@@ -478,6 +482,7 @@ namespace Orleans.Tests.AzureUtils
                         return list;
                     };
 
+#if !ORLEANS_TRANSACTIONS
                     IBackoffProvider backoff = new FixedBackoff(AzureTableDefaultPolicies.PauseBetweenTableOperationRetries);
 
                     List<T> results = await AsyncExecutorWithRetries.ExecuteWithRetries(
@@ -486,7 +491,9 @@ namespace Orleans.Tests.AzureUtils
                         (exc, counter) => AzureStorageUtils.AnalyzeReadException(exc.GetBaseException(), counter, TableName, Logger),
                         AzureTableDefaultPolicies.TableOperationTimeout,
                         backoff);
-
+#else
+                    List<T> results = await executeQueryHandleContinuations();
+#endif
                     // Data was read successfully if we got to here
                     return results.Select(i => Tuple.Create(i, i.ETag)).ToList();
 
@@ -731,7 +738,7 @@ namespace Orleans.Tests.AzureUtils
             }
         }
 
-        #endregion
+#endregion
 
         /// <summary>
         /// Helper functions for building table queries.

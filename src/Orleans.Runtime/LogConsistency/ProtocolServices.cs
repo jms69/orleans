@@ -4,13 +4,12 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Orleans.Configuration;
 using Orleans.LogConsistency;
 using Orleans.MultiCluster;
 using Orleans.SystemTargetInterfaces;
 using Orleans.GrainDirectory;
-using Orleans.Hosting;
 using Orleans.Serialization;
-using Orleans.Runtime.Configuration;
 using Orleans.Runtime.MultiClusterNetwork;
 
 namespace Orleans.Runtime.LogConsistency
@@ -20,7 +19,7 @@ namespace Orleans.Runtime.LogConsistency
     /// This class allows access to these services to providers that cannot see runtime-internals.
     /// It also stores grain-specific information like the grain reference, and caches 
     /// </summary>
-    internal class ProtocolServices : ILogConsistencyProtocolServices
+    internal class ProtocolServices : ILogConsistencyProtocolServices, IMultiClusterConfigurationListener
     {
         private static readonly object[] EmptyObjectArray = new object[0];
 
@@ -157,7 +156,7 @@ namespace Orleans.Runtime.LogConsistency
             if (this.MultiClusterEnabled)
             {
                 // subscribe this grain to configuration change events
-                this.multiClusterOracle.SubscribeToMultiClusterConfigurationEvents(GrainReference);
+                this.multiClusterOracle.SubscribeToMultiClusterConfigurationEvents(this);
             }
         }
 
@@ -166,8 +165,15 @@ namespace Orleans.Runtime.LogConsistency
             if (this.MultiClusterEnabled)
             {
                 // unsubscribe this grain from configuration change events
-                this.multiClusterOracle.UnSubscribeFromMultiClusterConfigurationEvents(GrainReference);
+                this.multiClusterOracle.UnSubscribeFromMultiClusterConfigurationEvents(this);
             }
+        }
+
+        public void OnMultiClusterConfigurationChange(MultiClusterConfiguration next)
+        {
+            // enqueue conf change event as grain call
+            var g = this.grainFactory.Cast<ILogConsistencyProtocolParticipant>(GrainReference);
+            g.OnMultiClusterConfigurationChange(next).Ignore();
         }
 
         public IEnumerable<string> ActiveClusters

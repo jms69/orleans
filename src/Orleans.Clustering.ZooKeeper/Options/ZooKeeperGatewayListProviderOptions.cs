@@ -1,14 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace OrleansZooKeeperUtils.Options
+﻿namespace Orleans.Configuration
 {
     public class ZooKeeperGatewayListProviderOptions
     {
         /// <summary>
         /// Connection string for ZooKeeper storage
         /// </summary>
+        [Redact]
         public string ConnectionString { get; set; }
     }
 }

@@ -11,6 +11,7 @@ using Orleans.CodeGeneration;
 using Orleans.Runtime;
 using Orleans.Runtime.Configuration;
 using Orleans.TestingHost;
+using Orleans.TestingHost.Legacy;
 using Orleans.Versions.Compatibility;
 using Orleans.Versions.Selector;
 using TestExtensions;
@@ -31,11 +32,9 @@ namespace Tester.HeterogeneousSilosTests.UpgradeTests
 #else
         private const string BuildConfiguration = "Release";
 #endif
-        private const string AssemblyGrainsV1Build = "TestVersionGrainsV1";
-        private const string AssemblyGrainsV2Build = "TestVersionGrainsV2";
         private const string CommonParentDirectory = "test";
         private const string BinDirectory = "bin";
-        private const string VersionsProjectDirectory = "Versions";
+        private const string VersionsProjectDirectory = "Grains";
         private const string GrainsV1ProjectName = "TestVersionGrains";
         private const string GrainsV2ProjectName = "TestVersionGrains2";
         private const string VersionTestBinaryName = "TestVersionGrains.dll";
@@ -55,30 +54,20 @@ namespace Tester.HeterogeneousSilosTests.UpgradeTests
 
         protected UpgradeTestsBase()
         {
-            // Setup dll references
-            // If test run from old master cmd line with single output directory
-            if (Directory.Exists(AssemblyGrainsV1Build))
+            var testDirectory = new DirectoryInfo(GetType().Assembly.Location);
+
+            while (String.Compare(testDirectory.Name, CommonParentDirectory, StringComparison.OrdinalIgnoreCase) != 0 || testDirectory.Parent == null)
             {
-                assemblyGrainsV1Dir = new DirectoryInfo(AssemblyGrainsV1Build);
-                assemblyGrainsV2Dir = new DirectoryInfo(AssemblyGrainsV2Build);
+                testDirectory = testDirectory.Parent;
             }
-            else
+
+            if (testDirectory.Parent == null)
             {
-                var testDirectory = new DirectoryInfo(GetType().Assembly.Location);
-
-                while (String.Compare(testDirectory.Name, CommonParentDirectory, StringComparison.OrdinalIgnoreCase) != 0 || testDirectory.Parent == null)
-                {
-                    testDirectory = testDirectory.Parent;
-                }
-
-                if (testDirectory.Parent == null)
-                {
-                    throw new InvalidOperationException($"Cannot locate 'test' directory starting from '{GetType().Assembly.Location}'");
-                }
-
-                assemblyGrainsV1Dir = GetVersionTestDirectory(testDirectory, GrainsV1ProjectName);
-                assemblyGrainsV2Dir = GetVersionTestDirectory(testDirectory, GrainsV2ProjectName);
+                throw new InvalidOperationException($"Cannot locate 'test' directory starting from '{GetType().Assembly.Location}'");
             }
+
+            assemblyGrainsV1Dir = GetVersionTestDirectory(testDirectory, GrainsV1ProjectName);
+            assemblyGrainsV2Dir = GetVersionTestDirectory(testDirectory, GrainsV2ProjectName);
         }
 
         private DirectoryInfo GetVersionTestDirectory(DirectoryInfo testDirectory, string directoryName)
@@ -204,7 +193,10 @@ namespace Tester.HeterogeneousSilosTests.UpgradeTests
             if (this.siloIdx == 0)
             {
                 // Setup configuration
-                this.builder = new TestClusterBuilder(1);
+                this.builder = new TestClusterBuilder(1)
+                {
+                    CreateSilo = AppDomainSiloHandle.Create
+                };
                 TestDefaultConfiguration.ConfigureTestCluster(this.builder);
                 builder.Options.ApplicationBaseDirectory = rootDir.FullName;
                 builder.AddSiloBuilderConfigurator<VersionGrainsSiloBuilderConfigurator>();
@@ -215,11 +207,10 @@ namespace Tester.HeterogeneousSilosTests.UpgradeTests
                     legacy.ClusterConfiguration.Globals.TypeMapRefreshInterval = refreshInterval;
                     legacy.ClusterConfiguration.Globals.DefaultVersionSelectorStrategy = VersionSelectorStrategy;
                     legacy.ClusterConfiguration.Globals.DefaultCompatibilityStrategy = CompatibilityStrategy;
-                    legacy.ClusterConfiguration.AddMemoryStorageProvider("Default");
 
                     legacy.ClientConfiguration.Gateways = legacy.ClientConfiguration.Gateways.Take(1).ToList(); // Only use primary gw
                     
-                    waitDelay = TestCluster.GetLivenessStabilizationTime(legacy.ClusterConfiguration.Globals, false);
+                    waitDelay = TestClusterLegacyUtils.GetLivenessStabilizationTime(legacy.ClusterConfiguration.Globals, false);
                 });
 
                 this.cluster = builder.Build();

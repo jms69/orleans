@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Orleans.Hosting;
+using Orleans.Configuration;
 using Orleans.MultiCluster;
 
 namespace Orleans.Runtime.MultiClusterNetwork
@@ -120,14 +120,14 @@ namespace Orleans.Runtime.MultiClusterNetwork
             this.ScheduleTask(() => Utils.SafeExecute(() => this.PublishChanges())).Ignore();
         }
 
-        public bool SubscribeToMultiClusterConfigurationEvents(GrainReference observer)
+        public bool SubscribeToMultiClusterConfigurationEvents(IMultiClusterConfigurationListener listener)
         {
-            return localData.SubscribeToMultiClusterConfigurationEvents(observer);
+            return localData.SubscribeToMultiClusterConfigurationEvents(listener);
         }
 
-        public bool UnSubscribeFromMultiClusterConfigurationEvents(GrainReference observer)
+        public bool UnSubscribeFromMultiClusterConfigurationEvents(IMultiClusterConfigurationListener listener)
         {
-            return localData.UnSubscribeFromMultiClusterConfigurationEvents(observer);
+            return localData.UnSubscribeFromMultiClusterConfigurationEvents(listener);
         }
 
 
@@ -627,6 +627,12 @@ namespace Orleans.Runtime.MultiClusterNetwork
                     Silo = oracle.GetRandomClusterGateway(Cluster);
                 }
 
+                // if the cluster has no gateways reporting, skip
+                if (Silo == null)
+                {
+                    return;
+                }
+
                 oracle.logger.Debug("-{0} Publish to silo {1} ({2}) {3}", id, Silo, Cluster ?? "local", data);
                 try
                 {
@@ -781,7 +787,7 @@ namespace Orleans.Runtime.MultiClusterNetwork
                 || (myStatus.Status == GatewayStatus.Active
                       && myStatus.HeartbeatTimestamp - existingEntry.HeartbeatTimestamp > this.resendActiveStatusAfter))
             {
-                logger.Trace("-InjectLocalStatus {0}", myStatus);
+                logger.Info($"Report as {myStatus}");
 
                 // update current data with status
                 var delta = this.localData.ApplyDataAndNotify(new MultiClusterData(myStatus));

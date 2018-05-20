@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <PackageId>Microsoft.Orleans.Streaming.AzureStorage</PackageId>
-    <Title>Microsoft Orleans Streaming Azure Table Storage</Title>
+    <Title>Microsoft Orleans Streaming Azure Storage</Title>
     <Description>Microsoft Orleans streaming provider for Azure Queue Storage</Description>
     <PackageTags>$(PackageTags) Azure Table Blob Storage</PackageTags>
   </PropertyGroup>
@@ -23,11 +23,6 @@
   <ItemGroup>
     <PackageReference Include="System.Net.Requests" Version="$(SystemRuntimeVersion)" />
     <PackageReference Include="WindowsAzure.Storage" Version="$(WindowsAzureStorageVersion)" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\..\Orleans.Core.Legacy\Orleans.Core.Legacy.csproj" />
-    <ProjectReference Include="..\..\OrleansProviders\OrleansProviders.csproj" />
   </ItemGroup>
 
   <ItemGroup>

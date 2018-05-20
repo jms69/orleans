@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Azure.EventHubs;
 using Microsoft.Extensions.Logging;
+using Orleans.Configuration;
 using Orleans.Providers.Streams.Common;
 using Orleans.Runtime;
 using Orleans.Streams;
@@ -22,7 +23,9 @@ namespace Orleans.ServiceBus.Providers
         /// <summary>
         /// Eventhub settings
         /// </summary>
-        public IEventHubSettings Hub { get; set; }
+        public EventHubOptions Hub { get; set; }
+
+        public EventHubReceiverOptions ReceiverOptions { get; set; }
         /// <summary>
         /// Partition name
         /// </summary>
@@ -41,7 +44,7 @@ namespace Orleans.ServiceBus.Providers
         private readonly ILogger logger;
         private readonly IQueueAdapterReceiverMonitor monitor;
         private readonly ITelemetryProducer telemetryProducer;
-        private readonly SiloStatisticsOptions statisticsOptions;
+        private readonly LoadSheddingOptions loadSheddingOptions;
 
         private IEventHubQueueCache cache;
 
@@ -68,7 +71,7 @@ namespace Orleans.ServiceBus.Providers
             Func<string, Task<IStreamQueueCheckpointer<string>>> checkpointerFactory,
             ILoggerFactory loggerFactory,
             IQueueAdapterReceiverMonitor monitor,
-            SiloStatisticsOptions statisticsOptions,
+            LoadSheddingOptions loadSheddingOptions,
             ITelemetryProducer telemetryProducer,
             Func<EventHubPartitionSettings, string, ILogger, ITelemetryProducer, Task<IEventHubReceiver>> eventHubReceiverFactory = null)
         {
@@ -77,7 +80,7 @@ namespace Orleans.ServiceBus.Providers
             if (checkpointerFactory == null) throw new ArgumentNullException(nameof(checkpointerFactory));
             if (loggerFactory == null) throw new ArgumentNullException(nameof(loggerFactory));
             if (monitor == null) throw new ArgumentNullException(nameof(monitor));
-            if (statisticsOptions == null) throw new ArgumentNullException(nameof(statisticsOptions));
+            if (loadSheddingOptions == null) throw new ArgumentNullException(nameof(loadSheddingOptions));
             if (telemetryProducer == null) throw new ArgumentNullException(nameof(telemetryProducer));
             this.settings = settings;
             this.cacheFactory = cacheFactory;
@@ -86,7 +89,7 @@ namespace Orleans.ServiceBus.Providers
             this.logger = this.loggerFactory.CreateLogger($"{this.GetType().FullName}.{settings.Hub.Path}.{settings.Partition}");
             this.monitor = monitor;
             this.telemetryProducer = telemetryProducer;
-            this.statisticsOptions = statisticsOptions;
+            this.loadSheddingOptions = loadSheddingOptions;
 
             this.eventHubReceiverFactory = eventHubReceiverFactory == null ? EventHubAdapterReceiver.CreateReceiver : eventHubReceiverFactory;
         }
@@ -116,7 +119,7 @@ namespace Orleans.ServiceBus.Providers
                     this.cache = null;
                 }
                 this.cache = this.cacheFactory(this.settings.Partition, this.checkpointer, this.loggerFactory, this.telemetryProducer);
-                this.flowController = new AggregatedQueueFlowController(MaxMessagesPerRead) { this.cache, LoadShedQueueFlowController.CreateAsPercentOfLoadSheddingLimit(this.statisticsOptions) };
+                this.flowController = new AggregatedQueueFlowController(MaxMessagesPerRead) { this.cache, LoadShedQueueFlowController.CreateAsPercentOfLoadSheddingLimit(this.loadSheddingOptions) };
                 string offset = await this.checkpointer.Load();
                 this.receiver = await this.eventHubReceiverFactory(this.settings, offset, this.logger, this.telemetryProducer);
                 watch.Stop();
@@ -280,7 +283,7 @@ namespace Orleans.ServiceBus.Providers
             EventHubClient client = EventHubClient.CreateFromConnectionString(connectionStringBuilder.ToString());
 
             // if we have a starting offset or if we're not configured to start reading from utc now, read from offset
-            if (!partitionSettings.Hub.StartFromNow ||
+            if (!partitionSettings.ReceiverOptions.StartFromNow ||
                 offset != EventHubConstants.StartOfStream)
             {
                 logger.Info("Starting to read from EventHub partition {0}-{1} at offset {2}", partitionSettings.Hub.Path, partitionSettings.Partition, offset);
@@ -297,8 +300,8 @@ namespace Orleans.ServiceBus.Providers
 
             PartitionReceiver receiver = client.CreateReceiver(partitionSettings.Hub.ConsumerGroup, partitionSettings.Partition, offset, offsetInclusive);
 
-            if (partitionSettings.Hub.PrefetchCount.HasValue)
-                receiver.PrefetchCount = partitionSettings.Hub.PrefetchCount.Value;
+            if (partitionSettings.ReceiverOptions.PrefetchCount.HasValue)
+                receiver.PrefetchCount = partitionSettings.ReceiverOptions.PrefetchCount.Value;
 
             return new EventHubReceiverProxy(receiver);
         }

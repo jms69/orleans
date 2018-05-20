@@ -26,20 +26,11 @@
     <Compile Include="..\Shared\Storage\RelationalOrleansQueries.cs" Link="Storage\RelationalOrleansQueries.cs" />
     <Compile Include="..\Shared\Storage\RelationalStorage.cs" Link="Storage\RelationalStorage.cs" />
     <Compile Include="..\Shared\Storage\RelationalStorageExtensions.cs" Link="Storage\RelationalStorageExtensions.cs" />
-    <Compile Include="..\Shared\Storage\SqlFormatProvider.cs" Link="Storage\SqlFormatProvider.cs" />
+    <Compile Include="..\Shared\Storage\AdoNetFormatProvider.cs" Link="Storage\AdoNetFormatProvider.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="System.Data.Common" Version="$(SystemRuntimeVersion)" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\..\Orleans.Core.Legacy\Orleans.Core.Legacy.csproj" />
-    <ProjectReference Include="..\..\OrleansProviders\OrleansProviders.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Storage\" />
   </ItemGroup>
 
   <ItemGroup>
@@ -83,5 +74,9 @@
       <Pack>true</Pack>
       <PackagePath>lib\$(TargetFramework)\SQLServer\</PackagePath>
     </None>
+    <Content Include="Microsoft.Orleans.Persistence.AdoNet.targets">
+      <PackagePath>build/$(TargetFramework)/</PackagePath>
+      <Pack>true</Pack>
+    </Content>
   </ItemGroup>
 </Project>

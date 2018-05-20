@@ -1,89 +1,115 @@
-﻿using System;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Orleans.Clustering.DynamoDB;
+using Orleans.Configuration;
 using Orleans.Messaging;
-using Orleans.Runtime.Membership;
-using Orleans.Runtime.MembershipService;
-using OrleansAWSUtils.Configuration;
-using OrleansAWSUtils.Options;
+using System;
 
 namespace Orleans.Hosting
 {
     public static class AwsUtilsHostingExtensions
     {
         /// <summary>
-        /// Configure SiloHostBuilder with DynamoDBMembership
+        /// Configures the silo to use DynamoDB for clustering.
         /// </summary>
-        public static ISiloHostBuilder UseDynamoDBMembership(this ISiloHostBuilder builder,
-            Action<DynamoDBMembershipOptions> configureOptions)
+        /// <param name="builder">
+        /// The builder.
+        /// </param>
+        /// <param name="configureOptions">
+        /// The configuration delegate.
+        /// </param>
+        /// <returns>
+        /// The provided <see cref="ISiloHostBuilder"/>.
+        /// </returns>
+        public static ISiloHostBuilder UseDynamoDBClustering(
+            this ISiloHostBuilder builder,
+            Action<DynamoDBClusteringOptions> configureOptions)
         {
-            builder.ConfigureServices(services => services.UseDynamoDBMembership(configureOptions));
-            return builder;
+            return builder.ConfigureServices(
+                services =>
+                {
+                    if (configureOptions != null)
+                    {
+                        services.Configure(configureOptions);
+                    }
+
+                    services.AddSingleton<IMembershipTable, DynamoDBMembershipTable>();
+                });
         }
 
         /// <summary>
-        /// Configure SiloHostBuilder with DynamoDBMembership
+        /// Configures the silo to use DynamoDB for clustering.
         /// </summary>
-        public static ISiloHostBuilder UseDynamoDBMembership(this ISiloHostBuilder builder,
-            Action<OptionsBuilder<DynamoDBMembershipOptions>> configureOptions)
+        /// <param name="builder">
+        /// The builder.
+        /// </param>
+        /// <param name="configureOptions">
+        /// The configuration delegate.
+        /// </param>
+        /// <returns>
+        /// The provided <see cref="ISiloHostBuilder"/>.
+        /// </returns>
+        public static ISiloHostBuilder UseDynamoDBClustering(
+            this ISiloHostBuilder builder,
+            Action<OptionsBuilder<DynamoDBClusteringOptions>> configureOptions)
         {
-            builder.ConfigureServices(services => services.UseDynamoDBMembership(configureOptions));
-            return builder;
+            return builder.ConfigureServices(
+                services =>
+                {
+                    configureOptions?.Invoke(services.AddOptions<DynamoDBClusteringOptions>());
+                    services.AddSingleton<IMembershipTable, DynamoDBMembershipTable>();
+                });
         }
 
         /// <summary>
-        /// Configure ClientBuilder with DynamoDBGatewayListProvider
+        /// Configures the client to use DynamoDB for clustering.
         /// </summary>
-        public static IClientBuilder UseDynamoDBGatewayListProvider(this IClientBuilder builder,
-            Action<DynamoDBGatewayListProviderOptions> configureOptions)
+        /// <param name="builder">
+        /// The builder.
+        /// </param>
+        /// <param name="configureOptions">
+        /// The configuration delegate.
+        /// </param>
+        /// <returns>
+        /// The provided <see cref="IClientBuilder"/>.
+        /// </returns>
+        public static IClientBuilder UseDynamoDBClustering(
+            this IClientBuilder builder,
+            Action<DynamoDBGatewayOptions> configureOptions)
         {
-            return  builder.ConfigureServices(services => services.UseDynamoDBGatewayListProvider(configureOptions));
+            return builder.ConfigureServices(
+                services =>
+                {
+                    if (configureOptions != null)
+                    {
+                        services.Configure(configureOptions);
+                    }
+
+                    services.AddSingleton<IGatewayListProvider, DynamoDBGatewayListProvider>();
+                });
         }
 
         /// <summary>
-        /// Configure ClientBuilder with DynamoDBGatewayListProvider
+        /// Configures the client to use DynamoDB for clustering.
         /// </summary>
-        public static IClientBuilder UseDynamoDBGatewayListProvider(this IClientBuilder builder,
-            Action<OptionsBuilder<DynamoDBGatewayListProviderOptions>> configureOptions)
+        /// <param name="builder">
+        /// The builder.
+        /// </param>
+        /// <param name="configureOptions">
+        /// The configuration delegate.
+        /// </param>
+        /// <returns>
+        /// The provided <see cref="IClientBuilder"/>.
+        /// </returns>
+        public static IClientBuilder UseDynamoDBClustering(
+            this IClientBuilder builder,
+            Action<OptionsBuilder<DynamoDBGatewayOptions>> configureOptions)
         {
-            return builder.ConfigureServices(services => services.UseDynamoDBGatewayListProvider(configureOptions));
-        }
-
-        /// <summary>
-        /// Configure DI container with DynamoDBMembership
-        /// </summary>
-        public static IServiceCollection UseDynamoDBMembership(this IServiceCollection services,
-            Action<DynamoDBMembershipOptions> configureOptions)
-        {
-            return services.UseDynamoDBMembership(ob => ob.Configure(configureOptions));
-        }
-
-        /// <summary>
-        /// Configure DI container with DynamoDBMembership
-        /// </summary>
-        public static IServiceCollection UseDynamoDBMembership(this IServiceCollection services,
-            Action<OptionsBuilder<DynamoDBMembershipOptions>> configureOptions)
-        {
-            configureOptions?.Invoke(services.AddOptions<DynamoDBMembershipOptions>());
-            return services.AddSingleton<IMembershipTable, DynamoDBMembershipTable>();
-        }
-
-        /// <summary>
-        /// Condifure client with DynamoDBGatewayListProvider
-        /// </summary>
-        public static IServiceCollection UseDynamoDBGatewayListProvider(this IServiceCollection services,
-            Action<DynamoDBGatewayListProviderOptions> configureOptions)
-        {
-            return services.UseDynamoDBGatewayListProvider(ob => ob.Configure(configureOptions));
-        }
-
-        /// <summary>
-        /// Condifure client with DynamoDBGatewayListProvider
-        /// </summary>
-        public static IServiceCollection UseDynamoDBGatewayListProvider(this IServiceCollection services,
-            Action<OptionsBuilder<DynamoDBGatewayListProviderOptions>> configureOptions)
-        {
-            configureOptions?.Invoke(services.AddOptions<DynamoDBGatewayListProviderOptions>());
-            return services.AddSingleton<IGatewayListProvider, DynamoDBGatewayListProvider>();
+            return builder.ConfigureServices(
+                services =>
+                {
+                    configureOptions?.Invoke(services.AddOptions<DynamoDBGatewayOptions>());
+                    services.AddSingleton<IGatewayListProvider, DynamoDBGatewayListProvider>();
+                });
         }
     }
 }

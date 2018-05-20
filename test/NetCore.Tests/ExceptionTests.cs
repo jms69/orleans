@@ -18,18 +18,18 @@ namespace NetCore.Tests
 
         public ExceptionTests()
         {
-            this.silo = SiloHostBuilder.CreateDefault()
+            this.silo = new SiloHostBuilder()
                 .ConfigureApplicationParts(
                     parts =>
                         parts.AddApplicationPart(typeof(ExceptionGrain).Assembly).WithReferences())
-                .ConfigureLocalHostPrimarySilo()
+                .UseLocalhostClustering()
                 .Build();
             this.silo.StartAsync().GetAwaiter().GetResult();
 
-            this.client = ClientBuilder.CreateDefault()
+            this.client = new ClientBuilder()
                 .ConfigureApplicationParts(parts =>
                     parts.AddApplicationPart(typeof(IExceptionGrain).Assembly).WithReferences())
-                .UseConfiguration(ClientConfiguration.LocalhostSilo())
+                .UseLocalhostClustering()
                 .Build();
             this.client.Connect().GetAwaiter().GetResult();
         }

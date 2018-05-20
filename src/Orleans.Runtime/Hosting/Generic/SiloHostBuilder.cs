@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Orleans.ApplicationParts;
 
 namespace Orleans.Hosting
 {
@@ -20,14 +22,6 @@ namespace Orleans.Hosting
         private IHostingEnvironment hostingEnvironment;
         private bool built;
 
-        /// <summary>
-        /// Returns a new default silo builder.
-        /// </summary>
-        /// <returns>A new default silo builder.</returns>
-        public static ISiloHostBuilder CreateDefault()
-            => new SiloHostBuilder()
-                .ConfigureOrleans();
-
         /// <inheritdoc />
         public IDictionary<object, object> Properties { get; } = new Dictionary<object, object>();
 
@@ -40,12 +34,17 @@ namespace Orleans.Hosting
 
             // Automatically configure Orleans if it wasn't configured before. 
             // This will not happen once we use the generic host builder from Microsoft.Extensions.Hosting
-            this.ConfigureOrleans();
+            this.ConfigureDefaults();
 
             BuildHostConfiguration();
             CreateHostingEnvironment();
             CreateHostBuilderContext();
             BuildAppConfiguration();
+            this.ConfigureApplicationParts(parts =>
+            {
+                // If the user has not added any application parts, add some defaults.
+                parts.ConfigureDefaults();
+            });
 
             var serviceProvider = CreateServiceProvider();
 

@@ -15,12 +15,23 @@ using Orleans.Configuration;
 using Orleans.Logging;
 using Orleans.Messaging;
 using Orleans.Runtime;
+using Orleans.Runtime.MembershipService;
+using Orleans.Statistics;
 using Orleans.TestingHost.Utils;
 
 namespace Orleans.TestingHost
 {
-    internal class TestClusterHostFactory
+    /// <summary>
+    /// Utility for creating silos given a name and collection of configuration sources.
+    /// </summary>
+    public class TestClusterHostFactory
     {
+        /// <summary>
+        /// Creates an returns a new silo.
+        /// </summary>
+        /// <param name="hostName">The silo name if it is not already specified in the configuration.</param>
+        /// <param name="configurationSources">The configuration.</param>
+        /// <returns>A new silo.</returns>
         public static ISiloHost CreateSiloHost(string hostName, IEnumerable<IConfigurationSource> configurationSources)
         {
             var configBuilder = new ConfigurationBuilder();
@@ -32,8 +43,13 @@ namespace Orleans.TestingHost
 
             string siloName = configuration[nameof(TestSiloSpecificOptions.SiloName)] ?? hostName;
 
-            ISiloHostBuilder hostBuilder = new SiloHostBuilder()
-                .ConfigureOrleans(ob => ob.Bind(configuration).Configure(options => options.SiloName = options.SiloName ?? siloName))
+            var hostBuilder = new SiloHostBuilder()
+                .Configure<ClusterOptions>(configuration)
+                .Configure<SiloOptions>(options => options.SiloName = siloName)
+                .Configure<ClusterMembershipOptions>(options =>
+                {
+                    options.ExpectedClusterSize = int.Parse(configuration["InitialSilosCount"]);
+                })
                 .ConfigureHostConfiguration(cb =>
                 {
                     // TODO: Instead of passing the sources individually, just chain the pre-built configuration once we upgrade to Microsoft.Extensions.Configuration 2.1
@@ -48,23 +64,22 @@ namespace Orleans.TestingHost
 
             hostBuilder.ConfigureServices((context, services) =>
             {
+                services.AddSingleton<TestHooksHostEnvironmentStatistics>();
+                services.AddFromExisting<IHostEnvironmentStatistics, TestHooksHostEnvironmentStatistics>();
                 services.AddSingleton<TestHooksSystemTarget>();
                 ConfigureListeningPorts(context, services);
 
                 TryConfigureTestClusterMembership(context, services);
                 TryConfigureFileLogging(configuration, services, siloName);
 
-                // TODO: make SiloHostBuilder work when not using the legacy configuration, similar to what we did with ClientBuilder.
-                // All The important information has been migrated to strongly typed options (everything should be migrated, but the minimum required set is already there).
-                var clusterConfiguration = GetOrCreateClusterConfiguration(services, context);
                 if (Debugger.IsAttached)
                 {
                     // Test is running inside debugger - Make timeout ~= infinite
-                    clusterConfiguration.Globals.ResponseTimeout = TimeSpan.FromMilliseconds(1000000);
+                    services.Configure<SiloMessagingOptions>(op => op.ResponseTimeout = TimeSpan.FromMilliseconds(1000000));
                 }
             });
 
-            AddDefaultApplicationParts(hostBuilder.GetApplicationPartManager());
+            hostBuilder.GetApplicationPartManager().ConfigureDefaults();
 
             var host = hostBuilder.Build();
             InitializeTestHooksSystemTarget(host);
@@ -82,7 +97,7 @@ namespace Orleans.TestingHost
 
             var builder = new ClientBuilder();
             builder.Properties["Configuration"] = configuration;
-            builder.ConfigureClusterClient(ob => ob.Bind(configuration));
+            builder.Configure<ClusterOptions>(configuration);
             ConfigureAppServices(configuration, builder);
 
             builder.ConfigureServices(services =>
@@ -91,7 +106,7 @@ namespace Orleans.TestingHost
                 TryConfigureFileLogging(configuration, services, hostName);
             });
 
-            AddDefaultApplicationParts(builder.GetApplicationPartManager());
+            builder.GetApplicationPartManager().ConfigureDefaults();
             return builder.Build();
         }
 
@@ -124,43 +139,10 @@ namespace Orleans.TestingHost
 
             services.Configure<EndpointOptions>(options =>
             {
-                options.IPAddress = IPAddress.Loopback;
-                options.Port = siloPort;
-                options.ProxyPort = gatewayPort;
+                options.AdvertisedIPAddress = IPAddress.Loopback;
+                options.SiloPort = siloPort;
+                options.GatewayPort = gatewayPort;
             });
-        }
-
-        private static ClusterConfiguration GetOrCreateClusterConfiguration(IServiceCollection services, HostBuilderContext context)
-        {
-            var clusterConfiguration = services
-                .FirstOrDefault(s => s.ServiceType == typeof(ClusterConfiguration))
-                ?.ImplementationInstance as ClusterConfiguration;
-
-            if (clusterConfiguration == null)
-            {
-                clusterConfiguration = new ClusterConfiguration
-                {
-                    Globals =
-                    {
-                        ReminderServiceType = GlobalConfiguration.ReminderServiceProviderType.ReminderTableGrain
-                    }
-                };
-
-                services.AddLegacyClusterConfigurationSupport(clusterConfiguration);
-            }
-            return clusterConfiguration;
-        }
-
-        private static ClientConfiguration GetOrCreateClientConfiguration(IServiceCollection services)
-        {
-            var clientConfiguration = services.TryGetClientConfiguration();
-
-            if (clientConfiguration == null)
-            {
-                clientConfiguration = new ClientConfiguration();
-                services.AddLegacyClientConfigurationSupport(clientConfiguration);
-            }
-            return clientConfiguration;
         }
 
         private static void ConfigureAppServices(IConfiguration configuration, ISiloHostBuilder hostBuilder)
@@ -203,7 +185,10 @@ namespace Orleans.TestingHost
             {
                 var primarySiloEndPoint = new IPEndPoint(IPAddress.Loopback, int.Parse(context.Configuration[nameof(TestSiloSpecificOptions.PrimarySiloPort)]));
 
-                services.UseDevelopmentMembership(options => options.PrimarySiloEndpoint = primarySiloEndPoint);
+                services.Configure<DevelopmentClusterMembershipOptions>(options => options.PrimarySiloEndpoint = primarySiloEndPoint);
+                services
+                    .AddSingleton<GrainBasedMembershipTable>()
+                    .AddFromExisting<IMembershipTable, GrainBasedMembershipTable>();
             }
         }
 
@@ -212,15 +197,22 @@ namespace Orleans.TestingHost
             bool.TryParse(configuration[nameof(TestClusterOptions.UseTestClusterMembership)], out bool useTestClusterMembership);
             if (useTestClusterMembership && services.All(svc => svc.ServiceType != typeof(IGatewayListProvider)))
             {
-                services.UseStaticGatewayListProvider(options =>
-                {
-                    int baseGatewayPort = int.Parse(configuration[nameof(TestClusterOptions.BaseGatewayPort)]);
-                    int initialSilosCount = int.Parse(configuration[nameof(TestClusterOptions.InitialSilosCount)]);
+                Action<StaticGatewayListProviderOptions> configureOptions = options =>
+                    {
+                        int baseGatewayPort = int.Parse(configuration[nameof(TestClusterOptions.BaseGatewayPort)]);
+                        int initialSilosCount = int.Parse(configuration[nameof(TestClusterOptions.InitialSilosCount)]);
 
-                    options.Gateways = Enumerable.Range(baseGatewayPort, initialSilosCount)
-                        .Select(port => new IPEndPoint(IPAddress.Loopback, port).ToGatewayUri())
-                        .ToList();
-                });
+                        options.Gateways = Enumerable.Range(baseGatewayPort, initialSilosCount)
+                            .Select(port => new IPEndPoint(IPAddress.Loopback, port).ToGatewayUri())
+                            .ToList();
+                    };
+                if (configureOptions != null)
+                {
+                    services.Configure(configureOptions);
+                }
+
+                services.AddSingleton<IGatewayListProvider, StaticGatewayListProvider>()
+                    .ConfigureFormatter<StaticGatewayListProviderOptions>();
             }
         }
 
@@ -232,17 +224,6 @@ namespace Orleans.TestingHost
             {
                 var fileName = TestingUtils.CreateTraceFileName(name, configuration[nameof(TestClusterOptions.ClusterId)]);
                 services.AddLogging(loggingBuilder => loggingBuilder.AddFile(fileName));
-            }
-        }
-
-        private static void AddDefaultApplicationParts(IApplicationPartManager applicationPartsManager)
-        {
-            var hasApplicationParts = applicationPartsManager.ApplicationParts.OfType<AssemblyPart>()
-                .Any(part => !part.IsFrameworkAssembly);
-            if (!hasApplicationParts)
-            {
-                applicationPartsManager.AddFromAppDomain();
-                applicationPartsManager.AddFromApplicationBaseDirectory();
             }
         }
 

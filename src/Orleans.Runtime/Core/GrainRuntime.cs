@@ -1,9 +1,8 @@
-﻿using System;
+using System;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Orleans.Configuration;
 using Orleans.Core;
-using Orleans.Runtime.Configuration;
-using Orleans.Streams;
 using Orleans.Timers;
 using Orleans.Storage;
 
@@ -14,8 +13,9 @@ namespace Orleans.Runtime
         private readonly ISiloRuntimeClient runtimeClient;
         private readonly ILoggerFactory loggerFactory;
         private readonly ILogger logger;
+
         public GrainRuntime(
-            IOptions<SiloOptions> siloOptions,
+            IOptions<ClusterOptions> clusterOptions,
             ILocalSiloDetails localSiloDetails,
             IGrainFactory grainFactory,
             ITimerRegistry timerRegistry,
@@ -26,7 +26,7 @@ namespace Orleans.Runtime
         {
             this.logger = loggerFactory.CreateLogger<GrainRuntime>();
             this.runtimeClient = runtimeClient;
-            ServiceId = siloOptions.Value.ServiceId;
+            ServiceId = clusterOptions.Value.ServiceId;
             SiloAddress = localSiloDetails.SiloAddress;
             SiloIdentity = SiloAddress.ToLongString();
             GrainFactory = grainFactory;
@@ -36,7 +36,7 @@ namespace Orleans.Runtime
             this.loggerFactory = loggerFactory;
         }
 
-        public Guid ServiceId { get; }
+        public string ServiceId { get; }
 
         public string SiloIdentity { get; }
 
@@ -62,9 +62,9 @@ namespace Orleans.Runtime
 
         public IStorage<TGrainState> GetStorage<TGrainState>(Grain grain) where TGrainState : new()
         {
-            IStorageProvider storageProvider = grain.GetStorageProvider(ServiceProvider);
+            IGrainStorage grainStorage = grain.GetGrainStorage(ServiceProvider);
             string grainTypeName = grain.GetType().FullName;
-            return new StateStorageBridge<TGrainState>(grainTypeName, grain.GrainReference, storageProvider, this.logger);
+            return new StateStorageBridge<TGrainState>(grainTypeName, grain.GrainReference, grainStorage, this.loggerFactory);
         }
     }
 }

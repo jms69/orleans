@@ -12,8 +12,6 @@ namespace Orleans.Clustering.AdoNet.Storage
 namespace Orleans.Persistence.AdoNet.Storage
 #elif REMINDERS_ADONET
 namespace Orleans.Reminders.AdoNet.Storage
-#elif STATISTICS_ADONET
-namespace Orleans.Statistics.AdoNet.Storage
 #elif TESTER_SQLUTILS
 namespace Orleans.Tests.SqlUtils
 #else
@@ -127,25 +125,6 @@ namespace Orleans.Tests.SqlUtils
         /// A query template to delete all reminder rows.
         /// </summary>
         internal string DeleteReminderRowsKey => queries[nameof(DeleteReminderRowsKey)];
-
-#endif
-
-#if STATISTICS_ADONET || TESTER_SQLUTILS
-
-        /// <summary>
-        /// A query template to insert Orleans statistics.
-        /// </summary>
-        internal string InsertOrleansStatisticsKey => queries[nameof(InsertOrleansStatisticsKey)];
-
-        /// <summary>
-        /// A query template to insert or update an Orleans client metrics key.
-        /// </summary>
-        internal string UpsertReportClientMetricsKey => queries[nameof(UpsertReportClientMetricsKey)];
-
-        /// <summary>
-        /// A query template to insert or update an Orleans silo metrics key.
-        /// </summary>
-        internal string UpsertSiloMetricsKey => queries[nameof(UpsertSiloMetricsKey)];
 
 #endif
 
@@ -274,17 +253,7 @@ namespace Orleans.Tests.SqlUtils
             {
                 command.AddParameter(paramName, paramValue, dbType: dbType);
             }
-
-            private void AddCoreMetricsParams(ICorePerformanceMetrics coreMetrics)
-            {
-                Add(nameof(coreMetrics.CpuUsage), coreMetrics.CpuUsage);
-                Add(nameof(coreMetrics.MemoryUsage), coreMetrics.MemoryUsage);
-                Add(nameof(coreMetrics.SendQueueLength), coreMetrics.SendQueueLength);
-                Add(nameof(coreMetrics.ReceiveQueueLength), coreMetrics.ReceiveQueueLength);
-                Add(nameof(coreMetrics.SentMessages), coreMetrics.SentMessages);
-                Add(nameof(coreMetrics.ReceivedMessages), coreMetrics.ReceivedMessages);
-            }
-
+            
             private void AddAddress(string name, IPAddress address)
             {
                 Add(name, address.ToString(), dbType: DbType.AnsiString);
@@ -341,31 +310,7 @@ namespace Orleans.Tests.SqlUtils
                     }
                 }
             }
-
-            internal ISiloPerformanceMetrics SiloMetrics
-            {
-                set
-                {
-                    AddCoreMetricsParams(value);
-                    Add(nameof(value.ActivationCount), value.ActivationCount);
-                    Add(nameof(value.RecentlyUsedActivationCount), value.RecentlyUsedActivationCount);
-                    Add(nameof(value.RequestQueueLength), value.RequestQueueLength);
-                    Add(nameof(value.IsOverloaded), value.IsOverloaded);
-                    Add(nameof(value.ClientCount), value.ClientCount);
-                }
-
-            }
-
-
-            internal IClientPerformanceMetrics ClientMetrics
-            {
-                set
-                {
-                    AddCoreMetricsParams(value);
-                    Add(nameof(value.ConnectedGatewayCount), value.ConnectedGatewayCount);
-                }
-            }
-
+            
             internal SiloAddress SiloAddress
             {
                 set

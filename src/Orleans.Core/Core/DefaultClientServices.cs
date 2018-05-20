@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Orleans.ApplicationParts;
 using Orleans.Configuration;
+using Orleans.Configuration.Validators;
 using Orleans.Hosting;
 using Orleans.Metadata;
 using Orleans.Providers;
@@ -17,11 +18,20 @@ namespace Orleans
     {
         public static void AddDefaultServices(IClientBuilder builder, IServiceCollection services)
         {
+            // Options logging
+            services.TryAddSingleton(typeof(IOptionFormatter<>), typeof(DefaultOptionsFormatter<>));
+            services.TryAddSingleton(typeof(IOptionFormatterResolver<>), typeof(DefaultOptionsFormatterResolver<>));
+
             services.TryAddSingleton<ILifecycleParticipant<IClusterClientLifecycle>, ClientOptionsLogger>();
             services.TryAddSingleton<TelemetryManager>();
             services.TryAddFromExisting<ITelemetryProducer, TelemetryManager>();
             services.TryAddSingleton<IHostEnvironmentStatistics, NoOpHostEnvironmentStatistics>();
             services.TryAddSingleton<IAppEnvironmentStatistics, AppEnvironmentStatistics>();
+            services.TryAddSingleton<ClientStatisticsManager>();
+            services.TryAddSingleton<ApplicationRequestsStatisticsGroup>();
+            services.TryAddSingleton<StageAnalysisStatisticsGroup>();
+            services.TryAddSingleton<SchedulerStatisticsGroup>();
+            services.TryAddSingleton<SerializationStatisticsGroup>();
             services.AddLogging();
             services.TryAddSingleton<ExecutorService>();
             services.TryAddSingleton<TypeMetadataCache>();
@@ -36,7 +46,6 @@ namespace Orleans
             services.TryAddFromExisting<IGrainReferenceConverter, GrainFactory>();
             services.TryAddSingleton<ClientProviderRuntime>();
             services.TryAddSingleton<MessageFactory>();
-            services.TryAddSingleton<ClientStatisticsManager>();
             services.TryAddFromExisting<IStreamProviderRuntime, ClientProviderRuntime>();
             services.TryAddFromExisting<IProviderRuntime, ClientProviderRuntime>();
             services.TryAddSingleton<IStreamSubscriptionManagerAdmin, StreamSubscriptionManagerAdmin>();
@@ -64,11 +73,14 @@ namespace Orleans
 
             services.TryAddSingleton(typeof(IKeyedServiceCollection<,>), typeof(KeyedServiceCollection<,>));
 
-            //Add default option formatter if none is configured, for options which are requied to be configured 
-            services.TryConfigureFormatter<ClusterClientOptions, ClusterClientOptionsFormatter>();
-            services.TryConfigureFormatter<ClientMessagingOptions, ClientMessagingOptionFormatter>();
-            services.TryConfigureFormatter<NetworkingOptions, NetworkingOptionFormatter>();
-            services.TryConfigureFormatter<ClientStatisticsOptions, ClientStatisticsOptionsFormatter>();
+            // Add default option formatter if none is configured, for options which are requied to be configured 
+            services.ConfigureFormatter<ClusterOptions>();
+            services.ConfigureFormatter<ClientMessagingOptions>();
+            services.ConfigureFormatter<NetworkingOptions>();
+            services.ConfigureFormatter<StatisticsOptions>();
+
+            services.AddTransient<IConfigurationValidator, ClusterOptionsValidator>();
+            services.AddTransient<IConfigurationValidator, ClientClusteringValidator>();
         }
     }
 }

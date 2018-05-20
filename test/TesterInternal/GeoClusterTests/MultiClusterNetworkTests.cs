@@ -24,10 +24,10 @@ namespace Tests.GeoClusterTests
         // This allows us to create multiple clients that are connected to different silos.
         public class ClientWrapper : ClientWrapperBase
         {
-            public static readonly Func<string, int, string, Action<ClientConfiguration>, ClientWrapper> Factory =
-                (name, gwPort, clusterId, configUpdater) => new ClientWrapper(name, gwPort, clusterId, configUpdater);
+            public static readonly Func<string, int, string, Action<ClientConfiguration>, Action<IClientBuilder>, ClientWrapper> Factory =
+                (name, gwPort, clusterId, configUpdater, clientConfigurator) => new ClientWrapper(name, gwPort, clusterId, configUpdater, clientConfigurator);
 
-            public ClientWrapper(string name, int gatewayport, string clusterId, Action<ClientConfiguration> customizer) : base(name, gatewayport, clusterId, customizer)
+            public ClientWrapper(string name, int gatewayport, string clusterId, Action<ClientConfiguration> customizer, Action<IClientBuilder> clientConfigurator) : base(name, gatewayport, clusterId, customizer, clientConfigurator)
             {
                 this.systemManagement = this.GrainFactory.GetGrain<IManagementGrain>(0);
             }
@@ -146,7 +146,7 @@ namespace Tests.GeoClusterTests
             }
         }
 
-        [SkippableFact(Skip = "Flaky test. SebastianBurckhardt to investigate."), TestCategory("Functional")]
+        [SkippableFact(), TestCategory("Functional")]
         public async Task TestMultiClusterConf_3_3()
         {
             // use a random global service id for testing purposes
@@ -164,12 +164,12 @@ namespace Tests.GeoClusterTests
             // create cluster A and clientA
             NewGeoCluster(globalserviceid, clusterA, 3, configcustomizer);
             var clientA = this.NewClient<ClientWrapper>(clusterA, 0, ClientWrapper.Factory);
-            var portsA = Clusters[clusterA].Cluster.GetActiveSilos().Select(x => x.SiloAddress.Endpoint.Port).ToArray();
+            var portsA = Clusters[clusterA].Cluster.GetActiveSilos().OrderBy(x => x.SiloAddress).Select(x => x.SiloAddress.Endpoint.Port).ToArray();
 
             // create cluster B and clientB
             NewGeoCluster(globalserviceid, clusterB, 3, configcustomizer);
             var clientB = this.NewClient<ClientWrapper>(clusterB, 0, ClientWrapper.Factory);
-            var portsB = Clusters[clusterB].Cluster.GetActiveSilos().Select(x => x.SiloAddress.Endpoint.Port).ToArray();
+            var portsB = Clusters[clusterB].Cluster.GetActiveSilos().OrderBy(x => x.SiloAddress).Select(x => x.SiloAddress.Endpoint.Port).ToArray();
 
             // wait for membership to stabilize
             await WaitForLivenessToStabilizeAsync();

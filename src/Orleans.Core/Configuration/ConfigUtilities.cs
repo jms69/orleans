@@ -1,3 +1,4 @@
+using Orleans.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -81,7 +82,7 @@ namespace Orleans.Runtime.Configuration
         internal static bool TryParsePropagateActivityId(XmlElement root, string nodeName, out bool propagateActivityId)
         {
             //set default value to make compiler happy, progateActivityId is only used when this method return true
-            propagateActivityId = Constants.DEFAULT_PROPAGATE_E2E_ACTIVITY_ID;
+            propagateActivityId = MessagingOptions.DEFAULT_PROPAGATE_E2E_ACTIVITY_ID;
             if (root.HasAttribute("PropagateActivityId"))
             {
                 propagateActivityId = ParseBool(root.GetAttribute("PropagateActivityId"),
@@ -93,15 +94,6 @@ namespace Orleans.Runtime.Configuration
 
         internal static void ParseStatistics(IStatisticsConfiguration config, XmlElement root, string nodeName)
         {
-            if (root.HasAttribute("ProviderType"))
-            {
-                config.StatisticsProviderName = root.GetAttribute("ProviderType");
-            }
-            if (root.HasAttribute("MetricsTableWriteInterval"))
-            {
-                config.StatisticsMetricsTableWriteInterval = ParseTimeSpan(root.GetAttribute("MetricsTableWriteInterval"),
-                    "Invalid TimeSpan value for Statistics.MetricsTableWriteInterval attribute on Statistics element for " + nodeName);
-            }
             if (root.HasAttribute("PerfCounterWriteInterval"))
             {
                 config.StatisticsPerfCountersWriteInterval = ParseTimeSpan(root.GetAttribute("PerfCounterWriteInterval"),
@@ -111,11 +103,6 @@ namespace Orleans.Runtime.Configuration
             {
                 config.StatisticsLogWriteInterval = ParseTimeSpan(root.GetAttribute("LogWriteInterval"),
                     "Invalid TimeSpan value for Statistics.LogWriteInterval attribute on Statistics element for " + nodeName);
-            }
-            if (root.HasAttribute("WriteLogStatisticsToTable"))
-            {
-                config.StatisticsWriteLogStatisticsToTable = ParseBool(root.GetAttribute("WriteLogStatisticsToTable"),
-                    "Invalid bool value for Statistics.WriteLogStatisticsToTable attribute on Statistics element for " + nodeName);
             }
             if (root.HasAttribute("StatisticsCollectionLevel"))
             {
@@ -355,31 +342,39 @@ namespace Orleans.Runtime.Configuration
         internal static async Task<IPAddress> ResolveIPAddress(string addrOrHost, byte[] subnet, AddressFamily family)
         {
             var loopback = family == AddressFamily.InterNetwork ? IPAddress.Loopback : IPAddress.IPv6Loopback;
+            IList<IPAddress> nodeIps;
 
-            // IF the address is an empty string, default to the local machine
+            // if the address is an empty string, just enumerate all ip addresses available
+            // on this node
             if (string.IsNullOrEmpty(addrOrHost))
             {
-                addrOrHost = Dns.GetHostName();
+                nodeIps = NetworkInterface.GetAllNetworkInterfaces()
+                            .SelectMany(iface => iface.GetIPProperties().UnicastAddresses)
+                            .Select(addr => addr.Address)
+                            .Where(addr => addr.AddressFamily == family && !IPAddress.IsLoopback(addr))
+                            .ToList();
             }
-
-            // Fix StreamFilteringTests_SMS tests
-            if (addrOrHost.Equals("loopback", StringComparison.OrdinalIgnoreCase))
+            else
             {
-                return loopback;
-            }
+                // Fix StreamFilteringTests_SMS tests
+                if (addrOrHost.Equals("loopback", StringComparison.OrdinalIgnoreCase))
+                {
+                    return loopback;
+                }
 
-            // check if addrOrHost is a valid IP address including loopback (127.0.0.0/8, ::1) and any (0.0.0.0/0, ::) addresses
-            IPAddress address;
-            if (IPAddress.TryParse(addrOrHost, out address))
-            {
-                return address;
+                // check if addrOrHost is a valid IP address including loopback (127.0.0.0/8, ::1) and any (0.0.0.0/0, ::) addresses
+                IPAddress address;
+                if (IPAddress.TryParse(addrOrHost, out address))
+                {
+                    return address;
+                }
+
+                // Get IP address from DNS. If addrOrHost is localhost will 
+                // return loopback IPv4 address (or IPv4 and IPv6 addresses if OS is supported IPv6)
+                nodeIps = await Dns.GetHostAddressesAsync(addrOrHost);
             }
 
             var candidates = new List<IPAddress>();
-
-            // Get IP address from DNS. If addrOrHost is localhost will 
-            // return loopback IPv4 address (or IPv4 and IPv6 addresses if OS is supported IPv6)
-            var nodeIps = await Dns.GetHostAddressesAsync(addrOrHost);
             foreach (var nodeIp in nodeIps.Where(x => x.AddressFamily == family))
             {
                 // If the subnet does not match - we can't resolve this address.
@@ -473,16 +468,12 @@ namespace Orleans.Runtime.Configuration
         {
             var sb = new StringBuilder();
             sb.Append("   Statistics: ").AppendLine();
-            sb.Append("     MetricsTableWriteInterval: ").Append(config.StatisticsMetricsTableWriteInterval).AppendLine();
             sb.Append("     PerfCounterWriteInterval: ").Append(config.StatisticsPerfCountersWriteInterval).AppendLine();
             sb.Append("     LogWriteInterval: ").Append(config.StatisticsLogWriteInterval).AppendLine();
-            sb.Append("     WriteLogStatisticsToTable: ").Append(config.StatisticsWriteLogStatisticsToTable).AppendLine();
             sb.Append("     StatisticsCollectionLevel: ").Append(config.StatisticsCollectionLevel).AppendLine();
 #if TRACK_DETAILED_STATS
             sb.Append("     TRACK_DETAILED_STATS: true").AppendLine();
 #endif
-            if (!string.IsNullOrEmpty(config.StatisticsProviderName))
-                sb.Append("     StatisticsProviderName:").Append(config.StatisticsProviderName).AppendLine();
             return sb.ToString();
         }
 
@@ -503,8 +494,10 @@ namespace Orleans.Runtime.Configuration
                 "Password=",                                // SQL
                 "SecretKey=", "SessionToken=",              // DynamoDb
             };
-
+            var mark = "<--SNIP-->";
             if (String.IsNullOrEmpty(connectionString)) return "null";
+            //if connection string format doesn't contain any secretKey, then return just <--SNIP-->
+            if (!secretKeys.Any(key => connectionString.Contains(key))) return mark;
 
             string connectionInfo = connectionString;
 
@@ -514,7 +507,7 @@ namespace Orleans.Runtime.Configuration
                 int keyPos = connectionInfo.IndexOf(secretKey, StringComparison.OrdinalIgnoreCase);
                 if (keyPos >= 0)
                 {
-                    connectionInfo = connectionInfo.Remove(keyPos + secretKey.Length) + "<--SNIP-->";
+                    connectionInfo = connectionInfo.Remove(keyPos + secretKey.Length) + mark;
                 }
             }
 

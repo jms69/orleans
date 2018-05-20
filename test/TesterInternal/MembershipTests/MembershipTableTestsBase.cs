@@ -14,6 +14,7 @@ using TestExtensions;
 using Xunit;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Orleans.Configuration;
 
 namespace UnitTests.MembershipTests
 {
@@ -40,9 +41,11 @@ namespace UnitTests.MembershipTests
         protected readonly string connectionString;
         protected ILoggerFactory loggerFactory;
         protected IOptions<SiloOptions> siloOptions;
-        protected IOptions<ClusterClientOptions> clientOptions;
+        protected IOptions<ClusterOptions> clusterOptions;
         protected const string testDatabaseName = "OrleansMembershipTest";//for relational storage
+        protected readonly IOptions<GatewayOptions> gatewayOptions;
         protected readonly ClientConfiguration clientConfiguration;
+
         protected MembershipTableTestsBase(ConnectionStringFixture fixture, TestEnvironmentFixture environment, LoggerFilterOptions filters)
         {
             this.environment = environment;
@@ -55,8 +58,7 @@ namespace UnitTests.MembershipTests
 
             fixture.InitializeConnectionStringAccessor(GetConnectionString);
             this.connectionString = fixture.ConnectionString;
-            this.siloOptions = Options.Create(new SiloOptions { ClusterId = this.clusterId });
-            this.clientOptions = Options.Create(new ClusterClientOptions { ClusterId = this.clusterId });
+            this.clusterOptions = Options.Create(new ClusterOptions { ClusterId = this.clusterId });
             var adoVariant = GetAdoInvariant();
 
             membershipTable = CreateMembershipTable(logger);
@@ -69,6 +71,7 @@ namespace UnitTests.MembershipTests
                 DataConnectionString = fixture.ConnectionString
             };
 
+            this.gatewayOptions = Options.Create(new GatewayOptions());
             gatewayListProvider = CreateGatewayListProvider(logger);
             gatewayListProvider.InitializeGatewayListProvider().WithTimeout(TimeSpan.FromMinutes(1)).Wait();
         }

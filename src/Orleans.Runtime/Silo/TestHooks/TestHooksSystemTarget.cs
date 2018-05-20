@@ -1,32 +1,62 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Orleans.Providers;
+using Orleans.Configuration;
 using Orleans.Runtime.ConsistentRing;
 using Orleans.Storage;
 using Orleans.Hosting;
-using Orleans.Runtime.Counters;
+using Orleans.Statistics;
 using Orleans.Streams;
 
 namespace Orleans.Runtime.TestHooks
 {
+    /// <summary>
+    /// A fake, test-only implementation of <see cref="IHostEnvironmentStatistics"/>.
+    /// </summary>
+    public class TestHooksHostEnvironmentStatistics : IHostEnvironmentStatistics
+    {
+        /// <inheritdoc />
+        public long? TotalPhysicalMemory { get; set; }
+
+        /// <inheritdoc />
+        public float? CpuUsage { get; set; }
+
+        /// <inheritdoc />
+        public long? AvailableMemory { get; set; }
+    }
+
     /// <summary>
     /// Test hook functions for white box testing implemented as a SystemTarget
     /// </summary>
     internal class TestHooksSystemTarget : SystemTarget, ITestHooksSystemTarget
     {
         private readonly ISiloHost host;
+        private readonly IMembershipOracle clusteringOracle;
+
+        private readonly TestHooksHostEnvironmentStatistics hostEnvironmentStatistics;
+
+        private readonly LoadSheddingOptions loadSheddingOptions;
+
         private readonly IConsistentRingProvider consistentRingProvider;
 
-        public TestHooksSystemTarget(ISiloHost host, ILocalSiloDetails siloDetails, ILoggerFactory loggerFactory)
+        public TestHooksSystemTarget(
+            ISiloHost host,
+            ILocalSiloDetails siloDetails,
+            ILoggerFactory loggerFactory,
+            IMembershipOracle clusteringOracle,
+            TestHooksHostEnvironmentStatistics hostEnvironmentStatistics,
+            IOptions<LoadSheddingOptions> loadSheddingOptions)
             : base(Constants.TestHooksSystemTargetId, siloDetails.SiloAddress, loggerFactory)
         {
             this.host = host;
-            consistentRingProvider = this.host.Services.GetRequiredService<IConsistentRingProvider>();
+            this.clusteringOracle = clusteringOracle;
+            this.hostEnvironmentStatistics = hostEnvironmentStatistics;
+            this.loadSheddingOptions = loadSheddingOptions.Value;
+            this.consistentRingProvider = this.host.Services.GetRequiredService<IConsistentRingProvider>();
         }
 
         public Task<SiloAddress> GetConsistentRingPrimaryTargetSilo(uint key)
@@ -36,26 +66,24 @@ namespace Orleans.Runtime.TestHooks
 
         public Task<string> GetConsistentRingProviderDiagnosticInfo()
         {
-            return Task.FromResult(consistentRingProvider.ToString());
+            return Task.FromResult(consistentRingProvider.ToString()); 
         }
-
-        public Task<bool> HasStatisticsProvider() => Task.FromResult(this.host.Services.GetServices<IStatisticsPublisher>() != null);
-
-        public Task<Guid> GetServiceId() => Task.FromResult(this.host.Services.GetRequiredService<IOptions<SiloOptions>>().Value.ServiceId);
+        
+        public Task<string> GetServiceId() => Task.FromResult(this.host.Services.GetRequiredService<IOptions<ClusterOptions>>().Value.ServiceId);
 
         public Task<bool> HasStorageProvider(string providerName)
         {
-            return Task.FromResult(this.host.Services.GetServiceByName<IStorageProvider>(providerName) != null);
+            return Task.FromResult(this.host.Services.GetServiceByName<IGrainStorage>(providerName) != null);
         }
 
         public Task<bool> HasStreamProvider(string providerName)
         {
-            return Task.FromResult(this.host.Services.GetServiceByName<IStreamProvider>(providerName) != null);
+            return Task.FromResult(this.host.Services.GetServiceByName<IGrainStorage>(providerName) != null);
         }
 
         public Task<ICollection<string>> GetStorageProviderNames()
         {
-            var storageProviderCollection = this.host.Services.GetRequiredService<IKeyedServiceCollection<string, IStorageProvider>>();
+            var storageProviderCollection = this.host.Services.GetRequiredService<IKeyedServiceCollection<string, IGrainStorage>>();
             return Task.FromResult<ICollection<string>>(storageProviderCollection.GetServices(this.host.Services).Select(keyedService => keyedService.Key).ToArray());
         }
 
@@ -71,11 +99,8 @@ namespace Orleans.Runtime.TestHooks
 
             allProviders.AddRange(await GetStorageProviderNames());
 
-            allProviders.AddRange(await GetStorageProviderNames());
-
-            var statisticsPublisherCollection = this.host.Services.GetRequiredService<IKeyedServiceCollection<string, IStatisticsPublisher>>(); ;
-            allProviders.AddRange(statisticsPublisherCollection.GetServices(this.host.Services).Select(keyedService => keyedService.Key));
-
+            allProviders.AddRange(await GetStreamProviderNames());
+            
             return allProviders;
         }
 
@@ -83,15 +108,34 @@ namespace Orleans.Runtime.TestHooks
         
         public Task LatchIsOverloaded(bool overloaded, TimeSpan latchPeriod)
         {
-            this.host.Services.GetRequiredService<SiloStatisticsManager>().MetricsTable.LatchIsOverload(overloaded);
-            
-            Task.Delay(latchPeriod).ContinueWith(t => UnlatchIsOverloaded()).Ignore();
+            if (overloaded)
+            {
+                this.LatchCpuUsage(this.loadSheddingOptions.LoadSheddingLimit + 1, latchPeriod);
+            }
+            else
+            {
+                this.LatchCpuUsage(this.loadSheddingOptions.LoadSheddingLimit - 1, latchPeriod);
+            }
+
             return Task.CompletedTask;
         }
 
-        private void UnlatchIsOverloaded()
+        public Task<Dictionary<SiloAddress, SiloStatus>> GetApproximateSiloStatuses() => Task.FromResult(this.clusteringOracle.GetApproximateSiloStatuses());
+
+        private void LatchCpuUsage(float? cpuUsage, TimeSpan latchPeriod)
         {
-            this.host.Services.GetRequiredService<SiloStatisticsManager>().MetricsTable.UnlatchIsOverloaded();
+            var previousValue = this.hostEnvironmentStatistics.CpuUsage;
+            this.hostEnvironmentStatistics.CpuUsage = cpuUsage;
+            Task.Delay(latchPeriod).ContinueWith(t =>
+                {
+                    var currentCpuUsage = this.hostEnvironmentStatistics.CpuUsage;
+
+                    // ReSharper disable once CompareOfFloatsByEqualityOperator
+                    if (currentCpuUsage == cpuUsage)
+                    {
+                        this.hostEnvironmentStatistics.CpuUsage = previousValue;
+                    }
+                }).Ignore();
         }
     }
 }

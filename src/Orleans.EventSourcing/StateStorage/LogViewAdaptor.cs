@@ -28,10 +28,10 @@ namespace Orleans.EventSourcing.StateStorage
         /// <summary>
         /// Initialize a StorageProviderLogViewAdaptor class
         /// </summary>
-        public LogViewAdaptor(ILogViewAdaptorHost<TLogView, TLogEntry> host, TLogView initialState, IStorageProvider globalStorageProvider, string grainTypeName, ILogConsistencyProtocolServices services)
+        public LogViewAdaptor(ILogViewAdaptorHost<TLogView, TLogEntry> host, TLogView initialState, IGrainStorage globalGrainStorage, string grainTypeName, ILogConsistencyProtocolServices services)
             : base(host, initialState, services)
         {
-            this.globalStorageProvider = globalStorageProvider;
+            this.globalGrainStorage = globalGrainStorage;
             this.grainTypeName = grainTypeName;
         }
 
@@ -39,7 +39,7 @@ namespace Orleans.EventSourcing.StateStorage
         private const int maxEntriesInNotifications = 200;
 
 
-        IStorageProvider globalStorageProvider;
+        IGrainStorage globalGrainStorage;
         string grainTypeName;        // stores the confirmed state including metadata
         GrainStateWithMetaDataAndETag<TLogView> GlobalStateCache;
 
@@ -80,7 +80,11 @@ namespace Orleans.EventSourcing.StateStorage
                     // for manual testing
                     //await Task.Delay(5000);
 
-                    await globalStorageProvider.ReadStateAsync(grainTypeName, Services.GrainReference, GlobalStateCache);
+                    var readState = new GrainStateWithMetaDataAndETag<TLogView>();
+
+                    await globalGrainStorage.ReadStateAsync(grainTypeName, Services.GrainReference, readState);
+
+                    GlobalStateCache = readState;
 
                     Services.Log(LogLevel.Debug, "read success {0}", GlobalStateCache);
 
@@ -123,7 +127,7 @@ namespace Orleans.EventSourcing.StateStorage
                 // for manual testing
                 //await Task.Delay(5000);
 
-                await globalStorageProvider.WriteStateAsync(grainTypeName, Services.GrainReference, nextglobalstate);
+                await globalGrainStorage.WriteStateAsync(grainTypeName, Services.GrainReference, nextglobalstate);
 
                 batchsuccessfullywritten = true;
 
@@ -149,7 +153,7 @@ namespace Orleans.EventSourcing.StateStorage
 
                     try
                     {
-                        await globalStorageProvider.ReadStateAsync(grainTypeName, Services.GrainReference, GlobalStateCache);
+                        await globalGrainStorage.ReadStateAsync(grainTypeName, Services.GrainReference, GlobalStateCache);
 
                         Services.Log(LogLevel.Debug, "read success {0}", GlobalStateCache);
 

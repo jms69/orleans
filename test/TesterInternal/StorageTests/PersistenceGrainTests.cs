@@ -16,6 +16,7 @@ using Xunit.Abstractions;
 using Orleans.Runtime.Configuration;
 using TesterInternal;
 using TestExtensions;
+using Orleans.Hosting;
 
 // ReSharper disable RedundantAssignment
 // ReSharper disable UnusedVariable
@@ -41,8 +42,16 @@ namespace UnitTests.StorageTests
                         new Dictionary<string, string> {{"Config1", "1"}, {"Config2", "2"}});
                     legacy.ClusterConfiguration.Globals.RegisterStorageProvider<ErrorInjectionStorageProvider>(ErrorInjectorProviderName);
                     legacy.ClusterConfiguration.Globals.RegisterStorageProvider<MockStorageProvider>(MockStorageProviderNameLowerCase);
-                    legacy.ClusterConfiguration.AddMemoryStorageProvider("MemoryStore");
                 });
+                builder.AddSiloBuilderConfigurator<SiloConfigurator>();
+            }
+
+            private class SiloConfigurator : ISiloBuilderConfigurator
+            {
+                public void Configure(ISiloHostBuilder hostBuilder)
+                {
+                    hostBuilder.AddMemoryGrainStorage("MemoryStore");
+                }
             }
         }
 
@@ -989,7 +998,7 @@ namespace UnitTests.StorageTests
         public async Task Persistence_Grain_BadProvider()
         {
             IBadProviderTestGrain grain = this.HostedCluster.GrainFactory.GetGrain<IBadProviderTestGrain>(Guid.NewGuid());
-            var oex = await Assert.ThrowsAsync<BadProviderConfigException>(() => grain.DoSomething());
+            var oex = await Assert.ThrowsAsync<BadGrainStorageConfigException>(() => grain.DoSomething());
         }
 
         [Fact, TestCategory("Functional"), TestCategory("Persistence")]

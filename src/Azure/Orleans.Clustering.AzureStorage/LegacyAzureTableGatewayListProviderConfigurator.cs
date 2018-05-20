@@ -1,10 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Microsoft.Extensions.DependencyInjection;
-using Orleans.Hosting;
+﻿using Microsoft.Extensions.DependencyInjection;
+
+using Orleans.Configuration;
 using Orleans.Messaging;
-using Orleans.Runtime.Configuration;
 
 namespace Orleans.AzureUtils.Storage
 {
@@ -12,12 +9,15 @@ namespace Orleans.AzureUtils.Storage
     public class LegacyAzureTableGatewayListProviderConfigurator : ILegacyGatewayListProviderConfigurator
     {
         /// <inheritdoc/>
-        public void ConfigureServices(ClientConfiguration configuration, IServiceCollection services)
+        public void ConfigureServices(object configuration, IServiceCollection services)
         {
-            services.UseAzureTableGatewayListProvider(options =>
-            {
-                options.ConnectionString = configuration.DataConnectionString;
-            });
+            services.Configure<AzureStorageGatewayOptions>(
+                options =>
+                {
+                    var reader = new ClientConfigurationReader(configuration);
+                    options.ConnectionString = reader.GetPropertyValue<string>("DataConnectionString");
+                });
+            services.AddSingleton<IGatewayListProvider, AzureGatewayListProvider>();
         }
     }
 }

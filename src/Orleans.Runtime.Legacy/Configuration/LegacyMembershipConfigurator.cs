@@ -1,8 +1,10 @@
 using System;
 using System.Linq;
+
 using Microsoft.Extensions.DependencyInjection;
+using Orleans.Configuration;
+using Orleans.Core.Legacy;
 using Orleans.Hosting;
-using Orleans.Messaging;
 using Orleans.Runtime.Configuration;
 using LivenessProviderType = Orleans.Runtime.Configuration.GlobalConfiguration.LivenessProviderType;
 
@@ -14,7 +16,7 @@ namespace Orleans.Runtime.MembershipService
         /// Legacy way to create membership table. Will need to move to a legacy package in the future
         /// </summary>
         /// <returns></returns>
-        internal static void ConfigureServices(GlobalConfiguration configuration, IServiceCollection services)
+        internal static void ConfigureServices(GlobalConfiguration configuration, ISiloHostBuilder builder)
         {
             ILegacyMembershipConfigurator configurator = null;
             switch (configuration.LivenessType)
@@ -22,44 +24,53 @@ namespace Orleans.Runtime.MembershipService
                 case LivenessProviderType.MembershipTableGrain:
                     configurator = new LegacyGrainBasedMembershipConfigurator();
                     break;
-                case LivenessProviderType.SqlServer:
-                    configurator = LegacyGatewayListProviderConfigurator.CreateInstanceWithParameterlessConstructor<ILegacyMembershipConfigurator>(Constants.ORLEANS_CLUSTERING_ADONET);
+                case LivenessProviderType.AdoNet:
+                    {
+                        string assemblyName = Constants.ORLEANS_CLUSTERING_ADONET;
+                        configurator = LegacyAssemblyLoader.LoadAndCreateInstance<ILegacyMembershipConfigurator>(assemblyName);
+                    }
                     break;
                 case LivenessProviderType.AzureTable:
-                    configurator = LegacyGatewayListProviderConfigurator.CreateInstanceWithParameterlessConstructor<ILegacyMembershipConfigurator>(Constants.ORLEANS_CLUSTERING_AZURESTORAGE);
+                    {
+                        string assemblyName = Constants.ORLEANS_CLUSTERING_AZURESTORAGE;
+                        configurator = LegacyAssemblyLoader.LoadAndCreateInstance<ILegacyMembershipConfigurator>(assemblyName);
+                    }
                     break;
                 case LivenessProviderType.ZooKeeper:
-                    configurator = LegacyGatewayListProviderConfigurator.CreateInstanceWithParameterlessConstructor<ILegacyMembershipConfigurator>(Constants.ORLEANS_CLUSTERING_ZOOKEEPER);
+                    {
+                        string assemblyName = Constants.ORLEANS_CLUSTERING_ZOOKEEPER;
+                        configurator = LegacyAssemblyLoader.LoadAndCreateInstance<ILegacyMembershipConfigurator>(assemblyName);
+                    }
                     break;
                 case LivenessProviderType.Custom:
-                    configurator = LegacyGatewayListProviderConfigurator.CreateInstanceWithParameterlessConstructor<ILegacyMembershipConfigurator>(configuration.MembershipTableAssembly);
+                    {
+                        string assemblyName = configuration.MembershipTableAssembly;
+                        configurator = LegacyAssemblyLoader.LoadAndCreateInstance<ILegacyMembershipConfigurator>(assemblyName);
+                    }
                     break;
                 default:
                     break;
             }
 
-            configurator?.ConfigureServices(configuration, services);
+            configurator?.Configure(configuration, builder);
         }
+
         private class LegacyGrainBasedMembershipConfigurator : ILegacyMembershipConfigurator
         {
-            public void ConfigureServices(object configuration, IServiceCollection services)
+            public void Configure(object configuration, ISiloHostBuilder builder)
             {
-                GlobalConfiguration config = configuration as GlobalConfiguration;
-                if (config == null) throw new ArgumentException($"{nameof(GlobalConfiguration)} expected", nameof(configuration));
-                ConfigureServices(config, services);
-            }
-
-            private void ConfigureServices(GlobalConfiguration configuration, IServiceCollection services)
-            {
-                services.UseDevelopmentMembership(options => CopyGlobalGrainBasedMembershipOptions(configuration, options));
-            }
-
-            private static void CopyGlobalGrainBasedMembershipOptions(GlobalConfiguration configuration, DevelopmentMembershipOptions options)
-            {
-                if (configuration.SeedNodes?.Count > 0)
+                if (!(configuration is GlobalConfiguration config))
                 {
-                    options.PrimarySiloEndpoint = configuration.SeedNodes?.FirstOrDefault();
+                    throw new ArgumentException($"{nameof(GlobalConfiguration)} expected", nameof(configuration));
                 }
+
+                builder.UseDevelopmentClustering(options =>
+                {
+                    if (config.SeedNodes?.Count > 0)
+                    {
+                        options.PrimarySiloEndpoint = config.SeedNodes?.FirstOrDefault();
+                    }
+                });
             }
         }
     }

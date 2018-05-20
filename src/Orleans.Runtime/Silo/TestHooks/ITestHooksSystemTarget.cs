@@ -8,8 +8,7 @@ namespace Orleans.Runtime.TestHooks
     {
         Task<SiloAddress> GetConsistentRingPrimaryTargetSilo(uint key);
         Task<string> GetConsistentRingProviderDiagnosticInfo();
-        Task<bool> HasStatisticsProvider();
-        Task<Guid> GetServiceId();
+        Task<string> GetServiceId();
         Task<ICollection<string>> GetStorageProviderNames();
         Task<ICollection<string>> GetStreamProviderNames();
         Task<ICollection<string>> GetAllSiloProviderNames();
@@ -17,6 +16,7 @@ namespace Orleans.Runtime.TestHooks
         Task<bool> HasStreamProvider(string providerName);
         Task<int> UnregisterGrainForTesting(GrainId grain);
         Task LatchIsOverloaded(bool overloaded, TimeSpan latchPeriod);
+        Task<Dictionary<SiloAddress, SiloStatus>> GetApproximateSiloStatuses();
     }
 
     internal interface ITestHooksSystemTarget : ITestHooks, ISystemTarget

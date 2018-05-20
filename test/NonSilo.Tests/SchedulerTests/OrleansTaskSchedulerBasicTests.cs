@@ -7,7 +7,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Orleans.Runtime;
 using Orleans.Runtime.Configuration;
-using Orleans.Runtime.Counters;
 using Orleans.Runtime.Scheduler;
 using TestExtensions;
 using UnitTests.TesterInternal;
@@ -18,6 +17,8 @@ using Orleans.TestingHost.Utils;
 using Orleans.Statistics;
 using Orleans.Hosting;
 using Microsoft.Extensions.Options;
+
+using Orleans.Runtime.TestHooks;
 
 // ReSharper disable ConvertToConstant.Local
 
@@ -48,7 +49,7 @@ namespace UnitTests.SchedulerTests
     {
         private readonly ITestOutputHelper output;
         private static readonly object Lockable = new object();
-        private readonly SiloPerformanceMetrics performanceMetrics;
+        private readonly IHostEnvironmentStatistics performanceMetrics;
         private readonly UnitTestSchedulingContext rootContext;
         private readonly OrleansTaskScheduler scheduler;
         private readonly ILoggerFactory loggerFactory;
@@ -57,7 +58,7 @@ namespace UnitTests.SchedulerTests
             this.output = output;
             SynchronizationContext.SetSynchronizationContext(null);
             this.loggerFactory = InitSchedulerLogging();
-            this.performanceMetrics = new SiloPerformanceMetrics(new NoOpHostEnvironmentStatistics(this.loggerFactory), new AppEnvironmentStatistics(), this.loggerFactory, Options.Create<SiloStatisticsOptions>(new SiloStatisticsOptions()));
+            this.performanceMetrics = new TestHooksHostEnvironmentStatistics();
             this.rootContext = new UnitTestSchedulingContext();
             this.scheduler = TestInternalHelper.InitializeSchedulerForTesting(this.rootContext, this.performanceMetrics, this.loggerFactory);
         }
@@ -65,7 +66,6 @@ namespace UnitTests.SchedulerTests
         public void Dispose()
         {
             SynchronizationContext.SetSynchronizationContext(null);
-            this.performanceMetrics.Dispose();
             this.scheduler.Stop();
         }
 
@@ -504,7 +504,7 @@ namespace UnitTests.SchedulerTests
         }
 
         [Fact]
-        public void Sched_Task_SubTaskExecutionSequencing()
+        public async Task Sched_Task_SubTaskExecutionSequencing()
         {
             UnitTestSchedulingContext context = new UnitTestSchedulingContext();
             this.scheduler.RegisterWorkContext(context);
@@ -512,7 +512,8 @@ namespace UnitTests.SchedulerTests
             LogContext("Main-task " + Task.CurrentId);
 
             int n = 0;
-
+            TaskCompletionSource<int> finished = new TaskCompletionSource<int>();
+            var numCompleted = new[] {0};
             Action closure = () =>
             {
                 LogContext("ClosureWorkItem-task " + Task.CurrentId);
@@ -539,6 +540,10 @@ namespace UnitTests.SchedulerTests
                         LogContext("Sub-task " + id + "-ContinueWith");
 
                         this.output.WriteLine("Sub-task " + id + " Done");
+                        if (Interlocked.Increment(ref numCompleted[0]) == 10)
+                        {
+                            finished.SetResult(0);
+                        }
                     });
                 }
             };
@@ -549,7 +554,7 @@ namespace UnitTests.SchedulerTests
 
             // Pause to let things run
             this.output.WriteLine("Main-task sleeping");
-            Thread.Sleep(TimeSpan.FromSeconds(2));
+            await Task.WhenAny(Task.Delay(TimeSpan.FromSeconds(10)), finished.Task);
             this.output.WriteLine("Main-task awake");
 
             // N should be 10, because all tasks should execute serially
@@ -715,8 +720,6 @@ namespace UnitTests.SchedulerTests
             orleansConfig.StandardLoad();
             NodeConfiguration config = orleansConfig.CreateNodeConfigurationForSilo("Primary");
             var loggerFactory = TestingUtils.CreateDefaultLoggerFactory(TestingUtils.CreateTraceFileName(config.SiloName, orleansConfig.Globals.ClusterId), filters);
-            StatisticsCollector.Initialize(StatisticsLevel.Info);
-            SchedulerStatisticsGroup.Init(loggerFactory);
             return loggerFactory;
         }
     }

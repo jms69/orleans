@@ -1,17 +1,13 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
-using Orleans.Runtime;
 using Orleans.TestingHost;
 using TestExtensions;
 using UnitTests.GrainInterfaces;
 using Xunit;
-using Orleans;
-using Orleans.Runtime.Configuration;
 using Orleans.TestingHost.Utils;
+using Orleans.Hosting;
+using Orleans.Configuration;
 
 namespace Tester.Forwarding
 {
@@ -19,13 +15,24 @@ namespace Tester.Forwarding
     {
         public const int NumberOfSilos = 2;
 
+        private class SiloBuilderConfigurator : ISiloBuilderConfigurator
+        {
+            public void Configure(ISiloHostBuilder hostBuilder)
+            {
+                hostBuilder.AddAzureBlobGrainStorage("MemoryStore", (AzureBlobStorageOptions options) =>
+                {
+                    options.ConnectionString = TestDefaultConfiguration.DataConnectionString;
+                });
+            }
+        }
+
         protected override void ConfigureTestCluster(TestClusterBuilder builder)
         {
             Assert.True(StorageEmulator.TryStart());
+            builder.AddSiloBuilderConfigurator<SiloBuilderConfigurator>();
             builder.Options.InitialSilosCount = NumberOfSilos;
             builder.ConfigureLegacyConfiguration(legacy =>
             {
-                legacy.ClusterConfiguration.AddAzureBlobStorageProvider("MemoryStore", "UseDevelopmentStorage=true");
                 legacy.ClusterConfiguration.Globals.DefaultPlacementStrategy = "ActivationCountBasedPlacement";
                 legacy.ClusterConfiguration.Globals.NumMissedProbesLimit = 1;
                 legacy.ClusterConfiguration.Globals.NumVotesForDeathDeclaration = 1;

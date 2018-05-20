@@ -89,7 +89,7 @@ namespace Orleans.Runtime
             loader.logger.Info("{0} assemblies loaded.", loadedAssemblies.Count);
             return loadedAssemblies;
         }
-        
+
         public static T LoadAndCreateInstance<T>(string assemblyName, ILogger logger, IServiceProvider serviceProvider) where T : class
         {
             try
@@ -448,7 +448,7 @@ namespace Orleans.Runtime
             // generate feedback so that the operator can determine why her DLL didn't load.
             var msg = new StringBuilder();
             string bullet = Environment.NewLine + "\t* ";
-            msg.Append(String.Format("User assembly ignored: {0}", pathName));
+            msg.Append($"User assembly ignored: {pathName}");
             int count = 0;
             foreach (var i in distinctComplaints)
             {

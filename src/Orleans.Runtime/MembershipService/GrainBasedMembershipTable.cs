@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans.Concurrency;
-using Orleans.Hosting;
+using Orleans.Configuration;
 using Orleans.MultiCluster;
 using Orleans.Serialization;
 
@@ -17,7 +17,7 @@ namespace Orleans.Runtime.MembershipService
         private readonly ILogger logger;
         private IMembershipTableGrain grain;
 
-        public GrainBasedMembershipTable(IServiceProvider serviceProvider, ILogger<MembershipTableFactory> logger)
+        public GrainBasedMembershipTable(IServiceProvider serviceProvider, ILogger<GrainBasedMembershipTable> logger)
         {
             this.serviceProvider = serviceProvider;
             this.logger = logger;
@@ -29,7 +29,13 @@ namespace Orleans.Runtime.MembershipService
 
         private async Task<IMembershipTableGrain> GetMembershipTableGrain()
         {
-            var options = this.serviceProvider.GetRequiredService<IOptions<DevelopmentMembershipOptions>>().Value;
+            var options = this.serviceProvider.GetRequiredService<IOptions<DevelopmentClusterMembershipOptions>>().Value;
+            if (options.PrimarySiloEndpoint == null)
+            {
+                throw new OrleansConfigurationException(
+                    $"{nameof(DevelopmentClusterMembershipOptions)}.{nameof(options.PrimarySiloEndpoint)} must be set when using development clustering.");
+            }
+
             var siloDetails = this.serviceProvider.GetService<ILocalSiloDetails>();
             bool isPrimarySilo = siloDetails.SiloAddress.Endpoint.Equals(options.PrimarySiloEndpoint);
             if (isPrimarySilo)
@@ -62,7 +68,7 @@ namespace Orleans.Runtime.MembershipService
             {
                 try
                 {
-                    await membershipTableGrain.ReadAll().WithTimeout(timespan);
+                    await membershipTableGrain.ReadAll().WithTimeout(timespan, $"MembershipGrain trying to read all content of the membership table, failed due to timeout {timespan}");
                     logger.Info(ErrorCode.MembershipTableGrainInit2, "-Connected to membership table provider.");
                     return;
                 }
