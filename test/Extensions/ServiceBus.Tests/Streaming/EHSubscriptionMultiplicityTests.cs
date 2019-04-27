@@ -1,12 +1,6 @@
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.WindowsAzure.Storage.Table;
 using Orleans.Runtime;
-using Orleans.Runtime.Configuration;
-using Orleans.ServiceBus.Providers;
-using Orleans.Storage;
 using Orleans.Streams;
 using Orleans.TestingHost;
 using TestExtensions;
@@ -40,21 +34,22 @@ namespace ServiceBus.Tests.StreamingTests
                 {
                     hostBuilder
                         .AddMemoryGrainStorage("PubSubStore")
-                        .AddEventHubStreams(StreamProviderName, b=>b
-                        .ConfigureEventHub(ob => ob.Configure(
-                        options =>
+                        .AddEventHubStreams(StreamProviderName, b=>
                         {
-                            options.ConnectionString = TestDefaultConfiguration.EventHubConnectionString;
-                            options.ConsumerGroup = EHConsumerGroup;
-                            options.Path = EHPath;
-                          
-                        }))
-                        .UseEventHubCheckpointer(ob=>ob.Configure(options=>
-                        {
-                            options.ConnectionString = TestDefaultConfiguration.DataConnectionString;
-                            options.PersistInterval = TimeSpan.FromSeconds(1);
-                        }))
-                        .UseDynamicClusterConfigDeploymentBalancer());
+                            b.ConfigureEventHub(ob => ob.Configure(options =>
+                            {
+                                options.ConnectionString = TestDefaultConfiguration.EventHubConnectionString;
+                                options.ConsumerGroup = EHConsumerGroup;
+                                options.Path = EHPath;
+
+                            }));
+                            b.UseAzureTableCheckpointer(ob => ob.Configure(options =>
+                            {
+                                options.ConnectionString = TestDefaultConfiguration.DataConnectionString;
+                                options.PersistInterval = TimeSpan.FromSeconds(1);
+                            }));
+                            b.UseDynamicClusterConfigDeploymentBalancer();
+                        });
                 }
             }
         }
