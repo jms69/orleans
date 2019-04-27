@@ -1,26 +1,33 @@
-﻿using Orleans.Configuration;
+using Orleans.Configuration;
 using Orleans.Hosting;
 using Orleans.Providers.GCP.Streams.PubSub;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Orleans.Providers.Streams.Common;
+using Orleans.ApplicationParts;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Orleans.Streams
 {
     public class SiloPubSubStreamConfigurator<TDataAdapter> : SiloPersistentStreamConfigurator
          where TDataAdapter : IPubSubDataAdapter
     {
-        public SiloPubSubStreamConfigurator(string name, ISiloHostBuilder builder)
-            : base(name, builder, PubSubAdapterFactory<TDataAdapter>.Create)
+        public SiloPubSubStreamConfigurator(string name, Action<Action<IServiceCollection>> configureServicesDelegate, Action<Action<IApplicationPartManager>> configureAppPartsDelegate)
+            : base(name, configureServicesDelegate, PubSubAdapterFactory<TDataAdapter>.Create)
         {
-            this.siloBuilder
-                .ConfigureApplicationParts(parts => parts.AddFrameworkPart(typeof(PubSubAdapterFactory<>).Assembly))
-                .ConfigureServices(services =>
+            configureAppPartsDelegate(parts =>
                 {
-                    services.ConfigureNamedOptionForLogging<PubSubOptions>(name)
-                        .ConfigureNamedOptionForLogging<SimpleQueueCacheOptions>(name)
-                        .ConfigureNamedOptionForLogging<HashRingStreamQueueMapperOptions>(name);
+                    parts.AddFrameworkPart(typeof(PubSubAdapterFactory<>).Assembly)
+                        .AddFrameworkPart(typeof(EventSequenceTokenV2).Assembly);
                 });
+            this.configureDelegate(services =>
+            {
+                services.ConfigureNamedOptionForLogging<PubSubOptions>(name)
+                    .ConfigureNamedOptionForLogging<SimpleQueueCacheOptions>(name)
+                    .ConfigureNamedOptionForLogging<HashRingStreamQueueMapperOptions>(name);
+            });
         }
 
         public SiloPubSubStreamConfigurator<TDataAdapter> ConfigurePubSub(Action<OptionsBuilder<PubSubOptions>> configureOptions)
@@ -47,8 +54,12 @@ namespace Orleans.Streams
         public ClusterClientPubSubStreamConfigurator(string name, IClientBuilder builder)
             : base(name, builder, PubSubAdapterFactory<TDataAdapter>.Create)
         {
-            this.clientBuilder
-                .ConfigureApplicationParts(parts => parts.AddFrameworkPart(typeof(PubSubAdapterFactory<>).Assembly))
+            builder
+                .ConfigureApplicationParts(parts =>
+                {
+                    parts.AddFrameworkPart(typeof(PubSubAdapterFactory<>).Assembly)
+                        .AddFrameworkPart(typeof(EventSequenceTokenV2).Assembly);
+                })
                 .ConfigureServices(services => services.ConfigureNamedOptionForLogging<PubSubOptions>(name));
         }
 

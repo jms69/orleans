@@ -1,25 +1,30 @@
-﻿using Orleans.Configuration;
-using Orleans.Hosting;
+using Orleans.Configuration;
 using OrleansAWSUtils.Streams;
 using System;
-using System.Collections.Generic;
-using System.Text;
+using Orleans.Providers.Streams.Common;
+using Orleans.ApplicationParts;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Orleans.Streams
 {
-    public class SiloSqsStreamConfigurator: SiloPersistentStreamConfigurator
+    public class SiloSqsStreamConfigurator : SiloPersistentStreamConfigurator
     {
-        public SiloSqsStreamConfigurator(string name, ISiloHostBuilder builder)
-            : base(name, builder, SQSAdapterFactory.Create)
+        public SiloSqsStreamConfigurator(string name, Action<Action<IServiceCollection>> configureServicesDelegate, Action<Action<IApplicationPartManager>> configureAppPartsDelegate)
+            : base(name, configureServicesDelegate, SQSAdapterFactory.Create)
         {
-            this.siloBuilder
-                .ConfigureApplicationParts(parts => parts.AddFrameworkPart(typeof(SQSAdapterFactory).Assembly))
-                .ConfigureServices(services =>
-                {
-                    services.ConfigureNamedOptionForLogging<SqsOptions>(name)
-                        .ConfigureNamedOptionForLogging<SimpleQueueCacheOptions>(name)
-                        .ConfigureNamedOptionForLogging<HashRingStreamQueueMapperOptions>(name);
-                });
+            configureAppPartsDelegate(parts =>
+            {
+                parts.AddFrameworkPart(typeof(SQSAdapterFactory).Assembly)
+                    .AddFrameworkPart(typeof(EventSequenceTokenV2).Assembly);
+            });
+
+            this.configureDelegate(services =>
+            {
+                services.ConfigureNamedOptionForLogging<SqsOptions>(name)
+                    .ConfigureNamedOptionForLogging<SimpleQueueCacheOptions>(name)
+                    .ConfigureNamedOptionForLogging<HashRingStreamQueueMapperOptions>(name);
+            });
         }
 
         public SiloSqsStreamConfigurator ConfigureSqs(Action<OptionsBuilder<SqsOptions>> configureOptions)
@@ -45,8 +50,12 @@ namespace Orleans.Streams
         public ClusterClientSqsStreamConfigurator(string name, IClientBuilder builder)
             : base(name, builder, SQSAdapterFactory.Create)
         {
-            this.clientBuilder
-                .ConfigureApplicationParts(parts => parts.AddFrameworkPart(typeof(SQSAdapterFactory).Assembly))
+            builder
+                .ConfigureApplicationParts(parts =>
+                {
+                    parts.AddFrameworkPart(typeof(SQSAdapterFactory).Assembly)
+                        .AddFrameworkPart(typeof(EventSequenceTokenV2).Assembly);
+                })
                 .ConfigureServices(services =>
                 {
                     services.ConfigureNamedOptionForLogging<SqsOptions>(name)

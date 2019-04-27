@@ -1,25 +1,29 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using Orleans.Configuration;
-using Orleans.Hosting;
 using Orleans.ServiceBus.Providers;
 using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
+using Orleans.Providers.Streams.Common;
+using Orleans.ApplicationParts;
 
 namespace Orleans.Streams
 {
     public class SiloEventHubStreamConfigurator : SiloRecoverableStreamConfigurator
     {
-        public SiloEventHubStreamConfigurator(string name, ISiloHostBuilder builder)
-            : base(name, builder, EventHubAdapterFactory.Create)
+        public SiloEventHubStreamConfigurator(string name,
+            Action<Action<IServiceCollection>> configureServicesDelegate, Action<Action<IApplicationPartManager>> configureAppPartsDelegate)
+            : base(name, configureServicesDelegate, EventHubAdapterFactory.Create)
         {
-            this.siloBuilder.ConfigureApplicationParts(parts => parts.AddFrameworkPart(typeof(EventHubAdapterFactory).Assembly))
-                .ConfigureServices(services => services.ConfigureNamedOptionForLogging<EventHubOptions>(name)
-                    .ConfigureNamedOptionForLogging<EventHubReceiverOptions>(name)
-                    .ConfigureNamedOptionForLogging<EventHubStreamCachePressureOptions>(name)
-                    .AddTransient<IConfigurationValidator>(sp => new EventHubOptionsValidator(sp.GetOptionsByName<EventHubOptions>(name), name))
-                    .AddTransient<IConfigurationValidator>(sp => new StreamCheckpointerConfigurationValidator(sp, name)));
+            configureAppPartsDelegate(parts =>
+                {
+                    parts.AddFrameworkPart(typeof(EventHubAdapterFactory).Assembly)
+                        .AddFrameworkPart(typeof(EventSequenceTokenV2).Assembly);
+                });
+            this.configureDelegate(services => services.ConfigureNamedOptionForLogging<EventHubOptions>(name)
+                .ConfigureNamedOptionForLogging<EventHubReceiverOptions>(name)
+                .ConfigureNamedOptionForLogging<EventHubStreamCachePressureOptions>(name)
+                .AddTransient<IConfigurationValidator>(sp => new EventHubOptionsValidator(sp.GetOptionsByName<EventHubOptions>(name), name))
+                .AddTransient<IConfigurationValidator>(sp => new StreamCheckpointerConfigurationValidator(sp, name)));
         }
 
         public SiloEventHubStreamConfigurator ConfigureCheckpointer<TOptions>(Func<IServiceProvider, string, IStreamQueueCheckpointerFactory> checkpointerFactoryBuilder, Action<OptionsBuilder<TOptions>> configureOptions)
@@ -53,7 +57,11 @@ namespace Orleans.Streams
         public ClusterClientEventHubStreamConfigurator(string name, IClientBuilder builder)
            : base(name, builder, EventHubAdapterFactory.Create)
         {
-            this.clientBuilder.ConfigureApplicationParts(parts => parts.AddFrameworkPart(typeof(EventHubAdapterFactory).Assembly))
+            builder.ConfigureApplicationParts(parts =>
+                {
+                    parts.AddFrameworkPart(typeof(EventHubAdapterFactory).Assembly)
+                        .AddFrameworkPart(typeof(EventSequenceTokenV2).Assembly);
+                })
                 .ConfigureServices(services => services.ConfigureNamedOptionForLogging<EventHubOptions>(name)
                 .AddTransient<IConfigurationValidator>(sp => new EventHubOptionsValidator(sp.GetOptionsByName<EventHubOptions>(name), name)));
         }
