@@ -1,12 +1,8 @@
-using System;
-using System.Collections.Generic;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Orleans.Configuration;
 using Orleans.Hosting;
 using Orleans.Providers.Streams.AzureQueue;
-using Orleans.Runtime;
-using Orleans.Runtime.Configuration;
 using Orleans.TestingHost;
 using Tester.StreamingTests;
 using TestExtensions;
@@ -15,7 +11,7 @@ using Xunit.Abstractions;
 
 namespace Tester.AzureUtils.Streaming
 {
-    [TestCategory("BVT"), TestCategory("Streaming"), TestCategory("Functional"), TestCategory("AQStreaming")]
+    [TestCategory("BVT"), TestCategory("Streaming"), TestCategory("AQStreaming")]
     public class AQProgrammaticSubscribeTest : ProgrammaticSubcribeTestsRunner, IClassFixture<AQProgrammaticSubscribeTest.Fixture>
     {
         private const int queueCount = 8;

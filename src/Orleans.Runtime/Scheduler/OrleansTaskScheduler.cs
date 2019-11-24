@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans.Configuration;
-using Orleans.Statistics;
 
 namespace Orleans.Runtime.Scheduler
 {
@@ -50,10 +49,11 @@ namespace Orleans.Runtime.Scheduler
             this.statisticsOptions = statisticsOptions;
             this.logger = loggerFactory.CreateLogger<OrleansTaskScheduler>();
             cancellationTokenSource = new CancellationTokenSource();
-            WorkItemGroup.ActivationSchedulingQuantum = options.Value.ActivationSchedulingQuantum;
+            this.SchedulingOptions = options.Value;
             applicationTurnsStopped = false;
             TurnWarningLengthThreshold = options.Value.TurnWarningLengthThreshold;
             this.MaxPendingItemsSoftLimit = options.Value.MaxPendingWorkItemsSoftLimit;
+            this.StoppedWorkItemGroupWarningInterval = options.Value.StoppedActivationWarningInterval;
             workgroupDirectory = new ConcurrentDictionary<ISchedulingContext, WorkItemGroup>();
 
             const int maxSystemThreads = 2;
@@ -68,7 +68,6 @@ namespace Orleans.Runtime.Scheduler
                     degreeOfParallelism,
                     options.Value.DelayWarningThreshold,
                     options.Value.TurnWarningLengthThreshold,
-                    this,
                     drainAfterCancel,
                     loggerFactory);
             }
@@ -92,6 +91,10 @@ namespace Orleans.Runtime.Scheduler
         }
 
         public int WorkItemGroupCount => workgroupDirectory.Count;
+
+        public TimeSpan StoppedWorkItemGroupWarningInterval { get; }
+
+        public SchedulingOptions SchedulingOptions { get; }
 
         private float AverageRunQueueLengthLevelTwo
         {
@@ -261,7 +264,7 @@ namespace Orleans.Runtime.Scheduler
             }
             else
             {
-                t.Start(workItemGroup.TaskRunner);
+                t.Start(workItemGroup.TaskScheduler);
             }
         }
 
@@ -316,15 +319,6 @@ namespace Orleans.Runtime.Scheduler
                      + "which will be the case if you create it inside Task.Run.");
             }
             GetWorkItemGroup(context); // GetWorkItemGroup throws for Invalid context
-        }
-
-        public TaskScheduler GetTaskScheduler(ISchedulingContext context)
-        {
-            if (context == null)
-                return this;
-            
-            WorkItemGroup workGroup;
-            return workgroupDirectory.TryGetValue(context, out workGroup) ? (TaskScheduler) workGroup.TaskRunner : this;
         }
 
         public override int MaximumConcurrencyLevel => maximumConcurrencyLevel;

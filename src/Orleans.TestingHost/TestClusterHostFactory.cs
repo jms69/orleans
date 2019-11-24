@@ -12,12 +12,13 @@ using Orleans.Runtime.Configuration;
 using Orleans.Runtime.Providers;
 using Orleans.Runtime.TestHooks;
 using Orleans.Configuration;
-using Orleans.Logging;
 using Orleans.Messaging;
 using Orleans.Runtime;
 using Orleans.Runtime.MembershipService;
 using Orleans.Statistics;
 using Orleans.TestingHost.Utils;
+using Orleans.TestingHost.Logging;
+using Orleans.Configuration.Internal;
 
 namespace Orleans.TestingHost
 {
@@ -46,10 +47,6 @@ namespace Orleans.TestingHost
             var hostBuilder = new SiloHostBuilder()
                 .Configure<ClusterOptions>(configuration)
                 .Configure<SiloOptions>(options => options.SiloName = siloName)
-                .Configure<ClusterMembershipOptions>(options =>
-                {
-                    options.ExpectedClusterSize = int.Parse(configuration["InitialSilosCount"]);
-                })
                 .ConfigureHostConfiguration(cb =>
                 {
                     // TODO: Instead of passing the sources individually, just chain the pre-built configuration once we upgrade to Microsoft.Extensions.Configuration 2.1
@@ -98,7 +95,6 @@ namespace Orleans.TestingHost
             var builder = new ClientBuilder();
             builder.Properties["Configuration"] = configuration;
             builder.Configure<ClusterOptions>(configuration);
-            ConfigureAppServices(configuration, builder);
 
             builder.ConfigureServices(services =>
             {
@@ -106,6 +102,7 @@ namespace Orleans.TestingHost
                 TryConfigureFileLogging(configuration, services, hostName);
             });
 
+            ConfigureAppServices(configuration, builder);
             builder.GetApplicationPartManager().ConfigureDefaults();
             return builder.Build();
         }
@@ -142,6 +139,11 @@ namespace Orleans.TestingHost
                 options.AdvertisedIPAddress = IPAddress.Loopback;
                 options.SiloPort = siloPort;
                 options.GatewayPort = gatewayPort;
+                options.SiloListeningEndpoint = new IPEndPoint(IPAddress.Loopback, siloPort);
+                if (gatewayPort != 0)
+                {
+                    options.GatewayListeningEndpoint = new IPEndPoint(IPAddress.Loopback, gatewayPort);
+                }
             });
         }
 

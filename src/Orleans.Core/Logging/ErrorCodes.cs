@@ -4,7 +4,7 @@ namespace Orleans
     /// <summary>
     /// The set of error types used by the Orleans runtime libraries for logging errors.
     /// </summary>
-    internal enum ErrorCode
+    public enum ErrorCode
     {
         Runtime = 100000,
         Runtime_Error_100001 = Runtime + 1,
@@ -440,6 +440,7 @@ namespace Orleans
         Catalog_FinishGrainDeactivateAndCleanupStreams_Exception = CatalogBase + 44,
         Catalog_DeactivateAllActivations                = CatalogBase + 45,
         Catalog_ActivationCollector_BadState_3          = CatalogBase + 46,
+        Catalog_UnregisterAsync                         = CatalogBase + 47,
 
         MembershipBase                         = Runtime + 600,
         MembershipCantWriteLivenessDisabled    = Runtime_Error_100225, // Backward compatability
@@ -505,6 +506,8 @@ namespace Orleans
         MembershipStartingIAmAliveTimer        = MembershipBase + 60,
         MembershipJoiningPreconditionFailure   = MembershipBase + 61,
         MembershipCleanDeadEntriesFailure      = MembershipBase + 62,
+        MembershipJoining                      = MembershipBase + 63,
+        MembershipFailedToJoin                 = MembershipBase + 64,
 
         NSMembershipStarting                   = MembershipBase + 70,
         NSMembershipBecomeActive               = MembershipBase + 71,
@@ -590,6 +593,7 @@ namespace Orleans
         ProxyClient_StartDone                       = ProxyClientBase + 29,
         ProxyClient_OGC_TargetNotFound_2            = ProxyClientBase + 30,
         ProxyClient_AppDomain_Unload                = ProxyClientBase + 31,
+        ProxyClient_GatewayUnknownStatus            = ProxyClientBase + 32,
 
         MessagingBase                           = Runtime + 1000,
         Messaging_IMA_DroppingConnection        = MessagingBase + 1,
@@ -620,7 +624,7 @@ namespace Orleans
         Messaging_IMA_ExceptionAccepting        = MessagingBase + 26,
         Messaging_IMA_BadBufferReceived         = MessagingBase + 27,
         Messaging_IMA_ActivationOverloaded      = MessagingBase + 28,
-        Messaging_Gateway_SerializationError    = MessagingBase + 29,
+        Messaging_SerializationError            = MessagingBase + 29,
         Messaging_UnableToDeserializeBody       = MessagingBase + 30,
         Messaging_Dispatcher_TryForward         = MessagingBase + 31,
         Messaging_Dispatcher_TryForwardFailed   = MessagingBase + 32,
@@ -629,6 +633,7 @@ namespace Orleans
         Messaging_Dispatcher_ReturnToOriginCluster    = MessagingBase + 35,
         MessagingAcceptAsyncSocketException     = MessagingBase + 36,
         Messaging_ExceptionReceiveAsync         = MessagingBase + 37,
+        Messaging_DroppingExpiredMessage = MessagingBase + 38,
 
         DirectoryBase                           = Runtime + 1100,
         DirectoryBothPrimaryAndBackupForGrain   = DirectoryBase + 1,
@@ -653,7 +658,7 @@ namespace Orleans
         SchedulerTurnTooLong2                   = SchedulerBase + 14,
         SchedulerTurnTooLong3                   = SchedulerBase + 15,
         SchedulerWorkGroupShuttingDown          = SchedulerBase + 16,
-        SchedulerNotEnqueuWorkWhenShutdown      = SchedulerBase + 17,
+        SchedulerEnqueueWorkWhenShutdown        = SchedulerBase + 17,
         SchedulerNotExecuteWhenShutdown         = SchedulerBase + 18,
         SchedulerAppTurnsStopped_1              = SchedulerBase + 19,
         SchedulerWorkGroupStopping              = SchedulerBase + 20,

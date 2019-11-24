@@ -2,19 +2,17 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Orleans;
 using Orleans.Configuration;
 using Orleans.Hosting;
-using Orleans.Logging;
 using Orleans.Providers.Streams.AzureQueue;
 using Orleans.Providers.Streams.Common;
 using Orleans.Runtime;
-using Orleans.Runtime.Configuration;
-using Orleans.Streams;
 using Orleans.TestingHost;
-using Orleans.TestingHost.Utils;
 using TestExtensions;
 using UnitTests.StreamingTests;
 using Xunit;
@@ -38,11 +36,15 @@ namespace Tester.AzureUtils.Streaming
             // Define a cluster of 4, but 2 will be stopped.
             builder.CreateSiloAsync = AppDomainSiloHandle.Create;
             builder.Options.InitialSilosCount = 2;
-            builder.ConfigureLegacyConfiguration(legacy =>
-            {
-                legacy.ClientConfiguration.Gateways = legacy.ClientConfiguration.Gateways.Take(1).ToList();
-            });
             builder.AddSiloBuilderConfigurator<MySiloBuilderConfigurator>();
+        }
+
+        private class ClientConfigurator : IClientBuilderConfigurator
+        {
+            public void Configure(IConfiguration configuration, IClientBuilder clientBuilder)
+            {
+                clientBuilder.Configure<StaticGatewayListProviderOptions>(options => options.Gateways = options.Gateways.Take(1).ToList());
+            }
         }
 
         private class MySiloBuilderConfigurator : ISiloBuilderConfigurator
@@ -92,7 +94,7 @@ namespace Tester.AzureUtils.Streaming
         public async Task DelayedQueueRebalancingTests_2()
         {
             await ValidateAgentsState(2, 2, "1");
-            
+
             await this.HostedCluster.StartAdditionalSilosAsync(2, true);
             await ValidateAgentsState(4, 2, "2");
 
@@ -109,7 +111,7 @@ namespace Tester.AzureUtils.Streaming
             Assert.Equal(numExpectedSilos, results.Length);
 
             // Convert.ToInt32 is used because of different behavior of the fallback serializers: binary formatter and Json.Net.
-            // The binary one deserializes object[] into array of ints when the latter one - into longs. http://stackoverflow.com/a/17918824 
+            // The binary one deserializes object[] into array of ints when the latter one - into longs. http://stackoverflow.com/a/17918824
             var numAgents = results.Select(Convert.ToInt32).ToArray();
             logger.Info($"Got back NumberRunningAgents: {Utils.EnumerableToString(numAgents)}");
             int i = 0;

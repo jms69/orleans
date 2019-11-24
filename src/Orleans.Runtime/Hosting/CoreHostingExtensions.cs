@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Orleans.Configuration;
+using Orleans.Configuration.Internal;
 using Orleans.Runtime;
 using Orleans.Runtime.MembershipService;
 
@@ -27,9 +28,7 @@ namespace Orleans.Hosting
                 {
                     services.PostConfigure<SiloOptions>(
                         options => options.SiloName =
-                            options.SiloName
-                            ?? context.HostingEnvironment.ApplicationName
-                            ?? $"Silo_{Guid.NewGuid().ToString("N").Substring(0, 5)}");
+                            options.SiloName ?? $"Silo_{Guid.NewGuid().ToString("N").Substring(0, 5)}");
 
                     services.TryAddSingleton<Silo>();
                     DefaultSiloServices.AddDefaultServices(context.GetApplicationPartManager(), services);
@@ -67,7 +66,6 @@ namespace Orleans.Hosting
             });
 
             builder.UseDevelopmentClustering(optionsBuilder => ConfigurePrimarySiloEndpoint(optionsBuilder, primarySiloEndpoint));
-            builder.Configure<ClusterMembershipOptions>(options => options.ExpectedClusterSize = 1);
             builder.ConfigureServices(services =>
             {
                 // If the caller did not override service id or cluster id, configure default values as a fallback.
@@ -155,9 +153,7 @@ namespace Orleans.Hosting
                 {
                     services.PostConfigure<SiloOptions>(
                         options => options.SiloName =
-                            options.SiloName
-                            ?? context.HostingEnvironment.ApplicationName
-                            ?? $"Silo_{Guid.NewGuid().ToString("N").Substring(0, 5)}");
+                            options.SiloName ?? $"Silo_{Guid.NewGuid().ToString("N").Substring(0, 5)}");
 
                     services.TryAddSingleton<Silo>();
                     DefaultSiloServices.AddDefaultServices(context.GetApplicationPartManager(), services);
@@ -195,7 +191,6 @@ namespace Orleans.Hosting
             });
 
             builder.UseDevelopmentClustering(optionsBuilder => ConfigurePrimarySiloEndpoint(optionsBuilder, primarySiloEndpoint));
-            builder.Configure<ClusterMembershipOptions>(options => options.ExpectedClusterSize = 1);
             builder.ConfigureServices(services =>
             {
                 // If the caller did not override service id or cluster id, configure default values as a fallback.
