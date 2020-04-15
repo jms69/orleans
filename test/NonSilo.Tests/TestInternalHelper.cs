@@ -13,13 +13,12 @@ namespace UnitTests.TesterInternal
     public class TestInternalHelper
     {
         internal static OrleansTaskScheduler InitializeSchedulerForTesting(
-            ISchedulingContext context,
+            IGrainContext context,
             ILoggerFactory loggerFactory)
         {
             var services = new ServiceCollection();
             services.AddOptions();
             services.AddLogging();
-            services.AddSingleton<ExecutorService>();
             services.AddSingleton<SchedulerStatisticsGroup>();
             services.AddSingleton<StageAnalysisStatisticsGroup>();
             services.AddSingleton(loggerFactory);
@@ -35,7 +34,6 @@ namespace UnitTests.TesterInternal
             var serviceProvider = services.BuildServiceProvider();
 
             var scheduler = ActivatorUtilities.CreateInstance<OrleansTaskScheduler>(serviceProvider);
-            scheduler.Start();
             WorkItemGroup ignore = scheduler.RegisterWorkContext(context);
             return scheduler;
         }

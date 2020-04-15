@@ -32,18 +32,6 @@ namespace Orleans.Serialization
         {
             this.PartialReset(input);
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void PartialReset(ReadOnlySequence<byte> input)
-        {
-            this.input = input;
-            this.nextSequencePosition = input.Start;
-            this.currentSpan = input.First;
-            this.bufferPos = 0;
-            this.bufferSize = this.currentSpan.Length;
-            this.previousBuffersSize = 0;
-        }
-
         public long Length => this.input.Length;
         
         public long Position
@@ -56,6 +44,17 @@ namespace Orleans.Serialization
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => (int)this.previousBuffersSize + this.bufferPos;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void PartialReset(ReadOnlySequence<byte> input)
+        {
+            this.input = input;
+            this.nextSequencePosition = input.Start;
+            this.currentSpan = input.First;
+            this.bufferPos = 0;
+            this.bufferSize = this.currentSpan.Length;
+            this.previousBuffersSize = 0;
         }
 
         public void Skip(long count)
@@ -197,14 +196,14 @@ namespace Orleans.Serialization
         private static void ThrowInsufficientData() => throw new InvalidOperationException("Insufficient data present in buffer.");
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#if NETSTANDARD2_1
+#if NETCOREAPP
         public float ReadFloat() => BitConverter.Int32BitsToSingle(ReadInt32());
 #else
         public float ReadFloat() => BitConverter.ToSingle(BitConverter.GetBytes(this.ReadInt32()), 0);
 #endif
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#if NETSTANDARD2_1
+#if NETCOREAPP
         public double ReadDouble() => BitConverter.Int64BitsToDouble(ReadInt64());
 #else
         public double ReadDouble() => BitConverter.ToDouble(BitConverter.GetBytes(this.ReadInt64()), 0);
@@ -289,41 +288,38 @@ namespace Orleans.Serialization
         public string ReadString()
         {
             var n = this.ReadInt32();
-            if (n == 0)
+            if (n <= 0)
             {
-                return String.Empty;
+                if (n == 0) return string.Empty;
+
+                // a length of -1 indicates that the string is null.
+                if (n == -1) return null;
             }
 
-            string s = null;
-            // a length of -1 indicates that the string is null.
-            if (-1 != n)
+#if NETCOREAPP
+            if (this.bufferSize - this.bufferPos >= n)
             {
-#if NETSTANDARD2_1
-                if (this.bufferSize - this.bufferPos >= n)
-                {
-                    s = Encoding.UTF8.GetString(this.currentSpan.Slice(this.bufferPos, n).Span);
-                    this.bufferPos += n;
-                }
-                else if (n <= 256)
-                {
-                    Span<byte> bytes = stackalloc byte[n];
-                    this.ReadBytes(in bytes);
-                    s = Encoding.UTF8.GetString(bytes);
-                }
-                else
-                {
-                    var bytes = this.ReadBytes((uint)n);
-                    s = Encoding.UTF8.GetString(bytes);
-                }
-#else
-                var bytes = this.ReadBytes((uint)n);
-                s = Encoding.UTF8.GetString(bytes);
-#endif
+                var s = Encoding.UTF8.GetString(this.currentSpan.Slice(this.bufferPos, n).Span);
+                this.bufferPos += n;
+                return s;
             }
-            
-            return s;
+            else if (n <= 256)
+            {
+                Span<byte> bytes = stackalloc byte[n];
+                this.ReadBytes(in bytes);
+                return Encoding.UTF8.GetString(bytes);
+            }
+            else
+            {
+                var bytes = this.ReadBytes((uint)n);
+                return Encoding.UTF8.GetString(bytes);
+            }
+#else
+            var bytes = this.ReadBytes((uint)n);
+            return Encoding.UTF8.GetString(bytes);
+#endif
         }
-        
+
         /// <summary> Read the next bytes from the stream. </summary>
         /// <param name="destination">Output array to store the returned data in.</param>
         /// <param name="offset">Offset into the destination array to write to.</param>
@@ -374,7 +370,7 @@ namespace Orleans.Serialization
 
             if (v4)
             {
-#if NETSTANDARD2_1
+#if NETCOREAPP
                 return new IPAddress(buff.Slice(12));
 #else
                 var v4Bytes = new byte[4];
@@ -387,7 +383,7 @@ namespace Orleans.Serialization
             }
             else
             {
-#if NETSTANDARD2_1
+#if NETCOREAPP
                 return new IPAddress(buff);
 #else
                 var v6Bytes = new byte[16];
@@ -402,7 +398,7 @@ namespace Orleans.Serialization
 
         public Guid ReadGuid()
         {
-#if NETSTANDARD2_1
+#if NETCOREAPP
             Span<byte> bytes = stackalloc byte[16];
             this.ReadBytes(in bytes);
             return new Guid(bytes);
@@ -410,7 +406,6 @@ namespace Orleans.Serialization
             byte[] bytes = ReadBytes(16);
             return new Guid(bytes);
 #endif
-
         }
 
         /// <summary> Read an <c>IPEndPoint</c> value from the stream. </summary>

@@ -131,7 +131,7 @@ namespace Orleans.Runtime.MembershipService
         private async Task ValidateInitialConnectivity()
         {
             // Continue attempting to validate connectivity until some reasonable timeout.
-            var maxAttemptTime = this.clusterMembershipOptions.ProbeTimeout.Multiply(5 * this.clusterMembershipOptions.NumMissedProbesLimit);
+            var maxAttemptTime = this.clusterMembershipOptions.ProbeTimeout.Multiply(5.0 * this.clusterMembershipOptions.NumMissedProbesLimit);
             var attemptNumber = 1;
             var now = this.getUtcDateTime();
             var attemptUntil = now + maxAttemptTime;
@@ -265,10 +265,7 @@ namespace Orleans.Runtime.MembershipService
         void ILifecycleParticipant<ISiloLifecycle>.Participate(ISiloLifecycle lifecycle)
         {
             {
-                Task OnRuntimeInitializeStart(CancellationToken ct)
-                {
-                    return Task.CompletedTask;
-                }
+                Task OnRuntimeInitializeStart(CancellationToken ct) => Task.CompletedTask;
 
                 async Task OnRuntimeInitializeStop(CancellationToken ct)
                 {
@@ -281,7 +278,7 @@ namespace Orleans.Runtime.MembershipService
 
                 lifecycle.Subscribe(
                     nameof(MembershipAgent),
-                    ServiceLifecycleStage.RuntimeInitialize,
+                    ServiceLifecycleStage.RuntimeInitialize + 1, // Gossip before the outbound queue gets closed
                     OnRuntimeInitializeStart,
                     OnRuntimeInitializeStop);
             }
@@ -322,15 +319,17 @@ namespace Orleans.Runtime.MembershipService
                     }
                     else
                     {
-                        var task = await Task.WhenAny(cancellationTask, this.BecomeShuttingDown());
-                        if (ReferenceEquals(task, cancellationTask))
+                        // Allow some minimum time for graceful shutdown.
+                        var gracePeriod = Task.WhenAll(Task.Delay(ClusterMembershipOptions.ClusteringShutdownGracePeriod), cancellationTask);
+                        var task = await Task.WhenAny(gracePeriod, this.BecomeShuttingDown());
+                        if (ReferenceEquals(task, gracePeriod))
                         {
                             this.log.LogWarning("Graceful shutdown aborted: starting ungraceful shutdown");
                             await Task.Run(() => this.BecomeStopping());
                         }
                         else
                         {
-                            await Task.WhenAny(cancellationTask, Task.WhenAll(tasks));
+                            await Task.WhenAny(gracePeriod, Task.WhenAll(tasks));
                         }
                     }
                 }

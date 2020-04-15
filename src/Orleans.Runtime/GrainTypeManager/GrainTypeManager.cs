@@ -2,17 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Reflection;
 using System.Text;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans.ApplicationParts;
 using Orleans.CodeGeneration;
 using Orleans.Configuration;
-using Orleans.GrainDirectory;
 using Orleans.Metadata;
-using Orleans.Runtime.Placement;
 using Orleans.Serialization;
 using Orleans.Utilities;
 
@@ -27,7 +23,6 @@ namespace Orleans.Runtime
         private readonly Dictionary<string, GrainTypeData> grainTypes;
         private readonly Dictionary<int, InvokerData> invokers;
         private readonly SerializationManager serializationManager;
-        private readonly MultiClusterRegistrationStrategyManager multiClusterRegistrationStrategyManager;
 		private readonly PlacementStrategy defaultPlacementStrategy;
         private Dictionary<int, Dictionary<ushort, List<SiloAddress>>> supportedSilosByInterface;
 
@@ -44,16 +39,13 @@ namespace Orleans.Runtime
             IApplicationPartManager applicationPartManager,
             PlacementStrategy defaultPlacementStrategy,
             SerializationManager serializationManager,
-            MultiClusterRegistrationStrategyManager multiClusterRegistrationStrategyManager,
             ILogger<GrainTypeManager> logger,
             IOptions<GrainClassOptions> grainClassOptions)
         {
-            var localTestMode = siloDetails.SiloAddress.Endpoint.Address.Equals(IPAddress.Loopback);
             this.logger = logger;
             this.defaultPlacementStrategy = defaultPlacementStrategy;
             this.serializationManager = serializationManager;
-            this.multiClusterRegistrationStrategyManager = multiClusterRegistrationStrategyManager;
-            grainInterfaceMap = new GrainInterfaceMap(localTestMode, this.defaultPlacementStrategy);
+            grainInterfaceMap = new GrainInterfaceMap(this.defaultPlacementStrategy);
             ClusterGrainInterfaceMap = grainInterfaceMap;
             GrainTypeResolver = grainInterfaceMap.GetGrainTypeResolver();
             grainInterfaceMapsBySilo = new Dictionary<SiloAddress, GrainInterfaceMap>();
@@ -73,11 +65,6 @@ namespace Orleans.Runtime
             CrashUtils.GrainTypes = this.grainTypes.Keys.ToList();
         }
 
-        public Dictionary<string, string> GetGrainInterfaceToClassMap()
-        {
-            return grainInterfaceMap.GetPrimaryImplementations();
-        }
-
         internal bool TryGetPrimaryImplementation(string grainInterface, out string grainClass)
         {
             return grainInterfaceMap.TryGetPrimaryImplementation(grainInterface, out grainClass);
@@ -95,8 +82,8 @@ namespace Orleans.Runtime
 
                     if (grainInterfaceMap.TryGetPrimaryImplementation(className, out grainType))
                         return grainTypes[grainType];
-                    if (grainTypes.ContainsKey(className))
-                        return grainTypes[className];
+                    if (grainTypes.TryGetValue(className, out var data))
+                        return data;
 
                     if (TypeUtils.IsGenericClass(className))
                     {
@@ -104,15 +91,14 @@ namespace Orleans.Runtime
                         if (grainInterfaceMap.TryGetPrimaryImplementation(templateName, out grainType))
                             templateName = grainType;
 
-                        if (grainTypes.ContainsKey(templateName))
+                        if (grainTypes.TryGetValue(templateName, out var grainTypeData))
                         {
                             // Found the generic template class
                             try
                             {
                                 // Instantiate the specific type from generic template
-                                var genericGrainTypeData = (GenericGrainTypeData)grainTypes[templateName];
                                 Type[] typeArgs = TypeUtils.GenericTypeArgsFromClassName(className);
-                                var concreteTypeData = genericGrainTypeData.MakeGenericType(typeArgs);
+                                var concreteTypeData = grainTypeData.MakeGenericType(typeArgs);
 
                                 // Add to lookup tables for next time
                                 var grainClassName = concreteTypeData.GrainClass;
@@ -136,9 +122,9 @@ namespace Orleans.Runtime
             }
         }
 
-        internal void GetTypeInfo(int typeCode, out string grainClass, out PlacementStrategy placement, out MultiClusterRegistrationStrategy activationStrategy, string genericArguments = null)
+        internal void GetTypeInfo(int typeCode, out string grainClass, out PlacementStrategy placement, string genericArguments = null)
         {
-            if (!ClusterGrainInterfaceMap.TryGetTypeInfo(typeCode, out grainClass, out placement, out activationStrategy, genericArguments))
+            if (!ClusterGrainInterfaceMap.TryGetTypeInfo(typeCode, out grainClass, out placement, genericArguments))
                 throw new OrleansException(string.Format("Unexpected: Cannot find an implementation class for grain interface {0}", typeCode));
         }
 
@@ -207,18 +193,17 @@ namespace Orleans.Runtime
         private void AddToGrainInterfaceToClassMap(Type grainClass, IEnumerable<Type> grainInterfaces, bool isUnordered)
         {
             var placement = GrainTypeData.GetPlacementStrategy(grainClass, this.defaultPlacementStrategy);
-            var registrationStrategy = this.multiClusterRegistrationStrategyManager.GetMultiClusterRegistrationStrategy(grainClass);
+            var directory = GrainTypeData.GetGrainDirectory(grainClass);
 
             foreach (var iface in grainInterfaces)
             {
                 var isPrimaryImplementor = IsPrimaryImplementor(grainClass, iface);
-                grainInterfaceMap.AddEntry(iface, grainClass, placement, registrationStrategy, isPrimaryImplementor);
+                grainInterfaceMap.AddEntry(iface, grainClass, placement, directory, isPrimaryImplementor);
             }
 
             if (isUnordered)
                 grainInterfaceMap.AddToUnorderedList(grainClass);
         }
-
 
         private static bool IsPrimaryImplementor(Type grainClass, Type iface)
         {
@@ -236,15 +221,6 @@ namespace Orleans.Runtime
         {
             // the map is immutable at this point
             return grainInterfaceMap;
-        }
-
-        private void AddInvokerClass(int interfaceId, Type invoker)
-        {
-            lock (invokers)
-            {
-                if (!invokers.ContainsKey(interfaceId))
-                    invokers.Add(interfaceId, new InvokerData(invoker));
-            }
         }
 
         /// <summary>
@@ -279,7 +255,7 @@ namespace Orleans.Runtime
 
         private void RebuildFullGrainInterfaceMap()
         {
-            var newClusterGrainInterfaceMap = new GrainInterfaceMap(false, this.defaultPlacementStrategy);
+            var newClusterGrainInterfaceMap = new GrainInterfaceMap(this.defaultPlacementStrategy);
             var newSupportedSilosByTypeCode = new Dictionary<int, List<SiloAddress>>();
             var newSupportedSilosByInterface = new Dictionary<int, Dictionary<ushort, List<SiloAddress>>>();
             foreach (var kvp in grainInterfaceMapsBySilo)
@@ -328,10 +304,7 @@ namespace Orleans.Runtime
 
                 if (excluded != null && excluded.Contains(className)) continue;
 
-                var typeData = grainType.IsGenericTypeDefinition ?
-                    new GenericGrainTypeData(grainType) :
-                    new GrainTypeData(grainType);
-                result[className] = typeData;
+                result[className] = new GrainTypeData(grainType);
             }
 
             return result;

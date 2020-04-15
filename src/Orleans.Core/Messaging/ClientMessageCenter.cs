@@ -56,8 +56,7 @@ namespace Orleans.Messaging
         internal bool Running { get; private set; }
 
         private readonly GatewayManager gatewayManager;
-        internal readonly Channel<Message> PendingInboundMessages;
-        private readonly Action<Message>[] messageHandlers;
+        private Action<Message> messageHandler;
         private int numMessages;
         // The grainBuckets array is used to select the connection to use when sending an ordered message to a grain.
         // Requests are bucketed by GrainID, so that all requests to a grain get routed through the same bucket.
@@ -88,7 +87,6 @@ namespace Orleans.Messaging
             ConnectionManager connectionManager,
             GatewayManager gatewayManager)
         {
-            this.messageHandlers = new Action<Message>[Enum.GetValues(typeof(Message.Categories)).Length];
             this.connectionManager = connectionManager;
             this.SerializationManager = serializationManager;
             MyAddress = SiloAddress.New(new IPEndPoint(localAddress, 0), gen);
@@ -98,12 +96,6 @@ namespace Orleans.Messaging
             this.connectionStatusListener = connectionStatusListener;
             Running = false;
             this.gatewayManager = gatewayManager;
-            PendingInboundMessages = Channel.CreateUnbounded<Message>(new UnboundedChannelOptions
-            {
-                SingleReader = true,
-                SingleWriter = false,
-                AllowSynchronousContinuations = false
-            });
             numMessages = 0;
             this.grainBuckets = new WeakReference<Connection>[clientMessagingOptions.Value.ClientSenderBuckets];
             logger = loggerFactory.CreateLogger<ClientMessageCenter>();
@@ -135,11 +127,6 @@ namespace Orleans.Messaging
         {
             Running = false;
 
-            Utils.SafeExecute(() =>
-            {
-                PendingInboundMessages.Writer.TryComplete();
-            });
-
             if (this.statisticsLevel.CollectQueueStats())
             {
                 queueTracking.OnStopExecution();
@@ -147,22 +134,19 @@ namespace Orleans.Messaging
             gatewayManager.Stop();
         }
 
-        public ChannelReader<Message> GetReader(Message.Categories type) => PendingInboundMessages.Reader;
-
         public void OnReceivedMessage(Message message)
         {
-            var handler = this.messageHandlers[(int)message.Category];
-            if (handler != null)
+            var handler = this.messageHandler;
+            if (handler is null)
             {
-                handler(message);
+                ThrowNullMessageHandler();
             }
             else
             {
-                if (!PendingInboundMessages.Writer.TryWrite(message))
-                {
-                    this.logger.LogWarning($"{nameof(ClientMessageCenter)} dropping message {message} because inbound queue is closed.");
-                }
+                handler(message);
             }
+
+            static void ThrowNullMessageHandler() => throw new InvalidOperationException("MessageCenter does not have a message handler set");
         }
 
         public void SendMessage(Message msg)
@@ -249,7 +233,7 @@ namespace Orleans.Messaging
             }
 
             // For untargeted messages to system targets, and for unordered messages, pick a next connection in round robin fashion.
-            if (msg.TargetGrain.IsSystemTarget || msg.IsUnordered)
+            if (msg.TargetGrain.IsSystemTarget() || msg.IsUnordered)
             {
                 // Get the cached list of live gateways.
                 // Pick a next gateway name in a round robin fashion.
@@ -380,9 +364,9 @@ namespace Orleans.Messaging
             return GetTypeManager(silo, grainFactory).GetImplicitStreamSubscriberTable(silo);
         }
 
-        public void RegisterLocalMessageHandler(Message.Categories category, Action<Message> handler)
+        public void RegisterLocalMessageHandler(Action<Message> handler)
         {
-            this.messageHandlers[(int)category] = handler;
+            this.messageHandler = handler;
         }
 
         public void RejectMessage(Message msg, string reason, Exception exc = null)
@@ -407,11 +391,6 @@ namespace Orleans.Messaging
             get { return 0; }
         }
 
-        public int ReceiveQueueLength
-        {
-            get { return 0; }
-        }
-
         private IClusterTypeManager GetTypeManager(SiloAddress destination, IInternalGrainFactory grainFactory)
         {
             return grainFactory.GetSystemTarget<IClusterTypeManager>(Constants.TypeManagerId, destination);
@@ -427,17 +406,6 @@ namespace Orleans.Messaging
             }
 
             return gateway;
-        }
-
-        internal void UpdateClientId(GrainId clientId)
-        {
-            if (ClientId.Category != UniqueKey.Category.Client)
-                throw new InvalidOperationException("Only handshake client ID can be updated with a cluster ID.");
-
-            if (clientId.Category != UniqueKey.Category.GeoClient)
-                throw new ArgumentException("Handshake client ID can only be updated  with a geo client.", nameof(clientId));
-
-            ClientId = clientId;
         }
 
         internal void OnGatewayConnectionOpen()
@@ -459,7 +427,6 @@ namespace Orleans.Messaging
 
         public void Dispose()
         {
-            PendingInboundMessages.Writer.TryComplete();
             gatewayManager.Dispose();
         }
     }

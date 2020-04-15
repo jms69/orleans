@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -37,7 +38,6 @@ namespace Orleans.Runtime.Messaging
             MessageCenter msgCtr, 
             ILocalSiloDetails siloDetails, 
             MessageFactory messageFactory,
-            ExecutorService executorService, 
             ILoggerFactory loggerFactory,
             IOptions<SiloMessagingOptions> options)
         {
@@ -45,7 +45,7 @@ namespace Orleans.Runtime.Messaging
             this.loggerFactory = loggerFactory;
             messageCenter = msgCtr;
             this.logger = this.loggerFactory.CreateLogger<Gateway>();
-            dropper = new GatewayClientCleanupAgent(this, executorService, loggerFactory, messagingOptions.ClientDropTimeout);
+            dropper = new GatewayClientCleanupAgent(this, loggerFactory, messagingOptions.ClientDropTimeout);
             clients = new ConcurrentDictionary<GrainId, ClientState>();
             clientConnections = new ConcurrentDictionary<GatewayInboundConnection, ClientState>();
             clientsReplyRoutingCache = new ClientsReplyRoutingCache(messagingOptions.ResponseTimeout);
@@ -128,11 +128,11 @@ namespace Orleans.Runtime.Messaging
             // it to this address...
             // EXCEPT if the value is equal to the current GatewayAdress: in this case we will return
             // null and the local dispatcher will forward the Message to a local SystemTarget activation
-            if (msg.TargetGrain.IsSystemTarget && !IsTargetingLocalGateway(msg.TargetSilo))
+            if (msg.TargetGrain.IsSystemTarget() && !IsTargetingLocalGateway(msg.TargetSilo))
                 return msg.TargetSilo;
 
             // for responses from ClientAddressableObject to ClientGrain try to use clientsReplyRoutingCache for sending replies directly back.
-            if (!msg.SendingGrain.IsClient || !msg.TargetGrain.IsClient) return null;
+            if (!msg.SendingGrain.IsClient() || !msg.TargetGrain.IsClient()) return null;
 
             if (msg.Direction != Message.Directions.Response) return null;
 
@@ -206,7 +206,7 @@ namespace Orleans.Runtime.Messaging
             // when this Gateway receives a message from client X to client addressale object Y
             // it needs to record the original Gateway address through which this message came from (the address of the Gateway that X is connected to)
             // it will use this Gateway to re-route the REPLY from Y back to X.
-            if (msg.SendingGrain.IsClient && msg.TargetGrain.IsClient)
+            if (msg.SendingGrain.IsClient() && msg.TargetGrain.IsClient())
             {
                 clientsReplyRoutingCache.RecordClientRoute(msg.SendingGrain, msg.SendingSilo);
             }
@@ -214,7 +214,7 @@ namespace Orleans.Runtime.Messaging
             msg.TargetSilo = null;
             // Override the SendingSilo only if the sending grain is not 
             // a system target
-            if (!msg.SendingGrain.IsSystemTarget)
+            if (!msg.SendingGrain.IsSystemTarget())
                 msg.SendingSilo = gatewayAddress;
             QueueRequest(client, msg);
             return true;
@@ -260,25 +260,25 @@ namespace Orleans.Runtime.Messaging
             }
         }
 
-        private class GatewayClientCleanupAgent : DedicatedAsynchAgent
+        private class GatewayClientCleanupAgent : TaskSchedulerAgent
         {
             private readonly Gateway gateway;
             private readonly TimeSpan clientDropTimeout;
 
-            internal GatewayClientCleanupAgent(Gateway gateway, ExecutorService executorService, ILoggerFactory loggerFactory, TimeSpan clientDropTimeout)
-                :base(executorService, loggerFactory)
+            internal GatewayClientCleanupAgent(Gateway gateway, ILoggerFactory loggerFactory, TimeSpan clientDropTimeout)
+                : base(loggerFactory)
             {
                 this.gateway = gateway;
                 this.clientDropTimeout = clientDropTimeout;
             }
 
-            protected override void Run()
+            protected override async Task Run()
             {
                 while (!Cts.IsCancellationRequested)
                 {
                     gateway.DropDisconnectedClients();
                     gateway.DropExpiredRoutingCachedEntries();
-                    Thread.Sleep(clientDropTimeout);
+                    await Task.Delay(clientDropTimeout);
                 }
             }
         }

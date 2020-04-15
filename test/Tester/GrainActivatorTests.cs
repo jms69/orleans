@@ -26,9 +26,9 @@ namespace UnitTests.General
                 builder.AddSiloBuilderConfigurator<TestSiloBuilderConfigurator>();
             }
 
-            private class TestSiloBuilderConfigurator : ISiloBuilderConfigurator
+            private class TestSiloBuilderConfigurator : ISiloConfigurator
             {
-                public void Configure(ISiloHostBuilder hostBuilder)
+                public void Configure(ISiloBuilder hostBuilder)
                 {
                     hostBuilder.ConfigureServices(services =>
                         services.Replace(ServiceDescriptor.Singleton(typeof(IGrainActivator), typeof(HardcodedGrainActivator))));
@@ -72,6 +72,7 @@ namespace UnitTests.General
         {
             public const string HardcodedValue = "Hardcoded Test Value";
             private int numberOfReleasedInstances;
+
             public HardcodedGrainActivator(IServiceProvider service) : base(service)
             {
             }

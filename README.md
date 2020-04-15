@@ -159,7 +159,7 @@ Please see the [getting started tutorial](https://dotnet.github.io/orleans/Docum
 On Windows, run the `build.cmd` script to build the NuGet packages locally, then reference the required NuGet packages from `/Artifacts/Release/*`.
 You can run `Test.cmd` to run all BVT tests, and `TestAll.cmd` to also run Functional tests.
 
-On Linux and macOS, run the `build.sh` script or `dotnet build ./OrleansCrossPlatform.sln` to build Orleans.
+On Linux and macOS, run the `build.sh` script or `dotnet build` to build Orleans.
 
 ## Official Builds
 
@@ -219,5 +219,3 @@ This project is licensed under the [MIT license](https://github.com/dotnet/orlea
 * Technical Report: [Distributed Virtual Actors for Programmability and Scalability](http://research.microsoft.com/apps/pubs/default.aspx?id=210931)
 * [Orleans Documentation](http://dotnet.github.io/orleans/)
 * [Contributing](http://dotnet.github.io/orleans/Community/Contributing.html)
-
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.

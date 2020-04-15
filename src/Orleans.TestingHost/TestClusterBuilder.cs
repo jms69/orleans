@@ -53,6 +53,11 @@ namespace Orleans.TestingHost
         }
 
         /// <summary>
+        /// Gets or sets the port allocator used to allocate consecutive silo ports.
+        /// </summary>
+        public ITestClusterPortAllocator PortAllocator { get; set; } = new TestClusterPortAllocator();
+
+        /// <summary>
         /// Configuration values which will be provided to the silos and clients created by this builder.
         /// </summary>
         public Dictionary<string, string> Properties { get; } = new Dictionary<string, string>();
@@ -83,9 +88,20 @@ namespace Orleans.TestingHost
             return this;
         }
 
-        public TestClusterBuilder AddSiloBuilderConfigurator<TSiloBuilderConfigurator>() where TSiloBuilderConfigurator : ISiloBuilderConfigurator, new()
+        /// <summary>
+        /// Adds an implementation of <see cref="ISiloConfigurator"/>, <see cref="IHostConfigurator"/>, or <see cref="ISiloBuilderConfigurator"/> to configure silos created by the test cluster.
+        /// </summary>
+        /// <typeparam name="T">The configurator type.</typeparam>
+        public TestClusterBuilder AddSiloBuilderConfigurator<T>() where T : new()
         {
-            this.Options.SiloBuilderConfiguratorTypes.Add(typeof(TSiloBuilderConfigurator).AssemblyQualifiedName);
+#pragma warning disable CS0618 // Type or member is obsolete
+            if (!typeof(ISiloConfigurator).IsAssignableFrom(typeof(T)) && !typeof(IHostConfigurator).IsAssignableFrom(typeof(T)) && !typeof(ISiloBuilderConfigurator).IsAssignableFrom(typeof(T)))
+            {
+                throw new ArgumentException($"The type {typeof(T)} is not assignable to either {nameof(ISiloConfigurator)}, {nameof(IHostConfigurator)}, or {nameof(ISiloBuilderConfigurator)}.");
+            }
+#pragma warning restore CS0618 // Type or member is obsolete
+
+            this.Options.SiloBuilderConfiguratorTypes.Add(typeof(T).AssemblyQualifiedName);
             return this;
         }
 
@@ -97,6 +113,7 @@ namespace Orleans.TestingHost
 
         public TestCluster Build()
         {
+            var portAllocator = this.PortAllocator;
             var configBuilder = new ConfigurationBuilder();
 
             foreach (var action in configureBuilderActions)
@@ -116,7 +133,7 @@ namespace Orleans.TestingHost
             configuration.Bind(finalOptions);
             
             var configSources = new ReadOnlyCollection<IConfigurationSource>(configBuilder.Sources);
-            var testCluster = new TestCluster(finalOptions, configSources);
+            var testCluster = new TestCluster(finalOptions, configSources, portAllocator);
             if (this.CreateSiloAsync != null) testCluster.CreateSiloAsync = this.CreateSiloAsync;
             return testCluster;
         }
@@ -133,60 +150,27 @@ namespace Orleans.TestingHost
         private void ConfigureDefaultPorts()
         {
             // Set base ports if none are currently set.
-            (int baseSiloPort, int baseGatewayPort) = GetAvailableConsecutiveServerPortsPair(this.Options.InitialSilosCount + 3);
+            (int baseSiloPort, int baseGatewayPort) = this.PortAllocator.AllocateConsecutivePortPairs(this.Options.InitialSilosCount + 3);
             if (this.Options.BaseSiloPort == 0) this.Options.BaseSiloPort = baseSiloPort;
             if (this.Options.BaseGatewayPort == 0) this.Options.BaseGatewayPort = baseGatewayPort;
         }
 
-        // Returns a pairs of ports which have the specified number of consecutive ports available for use.
-        internal static ValueTuple<int, int> GetAvailableConsecutiveServerPortsPair(int consecutivePortsToCheck = 5)
-        {
-            // Evaluate current system tcp connections
-            IPGlobalProperties ipGlobalProperties = IPGlobalProperties.GetIPGlobalProperties();
-            IPEndPoint[] tcpConnInfoArray = ipGlobalProperties.GetActiveTcpListeners();
-
-            // each returned port in the pair will have to have at least this amount of available ports following it
-
-            return (GetAvailableConsecutiveServerPorts(tcpConnInfoArray, 22300, 30000, consecutivePortsToCheck),
-                GetAvailableConsecutiveServerPorts(tcpConnInfoArray, 40000, 50000, consecutivePortsToCheck));
-        }
-
-        private static int GetAvailableConsecutiveServerPorts(IPEndPoint[] tcpConnInfoArray, int portStartRange, int portEndRange, int consecutivePortsToCheck)
-        {
-            const int MaxAttempts = 10;
-
-            for (int attempts = 0; attempts < MaxAttempts; attempts++)
-            {
-                int basePort = ThreadSafeRandom.Next(portStartRange, portEndRange);
-
-                // get ports in buckets, so we don't interfere with parallel runs of this same function
-                basePort = basePort - (basePort % consecutivePortsToCheck);
-                int endPort = basePort + consecutivePortsToCheck;
-
-                // make sure none of the ports in the sub range are in use
-                if (tcpConnInfoArray.All(endpoint => endpoint.Port < basePort || endpoint.Port >= endPort))
-                    return basePort;
-            }
-
-            throw new InvalidOperationException("Cannot find enough free ports to spin up a cluster");
-        }
-
-        internal class AddTestHooksApplicationParts : IClientBuilderConfigurator, ISiloBuilderConfigurator
+        internal class AddTestHooksApplicationParts : IClientBuilderConfigurator, ISiloConfigurator
         {
             public void Configure(IConfiguration configuration, IClientBuilder clientBuilder)
             {
                 clientBuilder.ConfigureApplicationParts(parts => parts.AddFrameworkPart(typeof(ITestHooksSystemTarget).Assembly));
             }
 
-            public void Configure(ISiloHostBuilder hostBuilder)
+            public void Configure(ISiloBuilder hostBuilder)
             {
                 hostBuilder.ConfigureApplicationParts(parts => parts.AddFrameworkPart(typeof(ITestHooksSystemTarget).Assembly));
             }
         }
 
-        internal class ConfigureStaticClusterDeploymentOptions : ISiloBuilderConfigurator
+        internal class ConfigureStaticClusterDeploymentOptions : ISiloConfigurator
         {
-            public void Configure(ISiloHostBuilder hostBuilder)
+            public void Configure(ISiloBuilder hostBuilder)
             {
                 hostBuilder.ConfigureServices((context, services) =>
                 {

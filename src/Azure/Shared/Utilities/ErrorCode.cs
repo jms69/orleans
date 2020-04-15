@@ -18,6 +18,8 @@ namespace Orleans.Streaming.EventHubs.Utilities
 namespace Orleans.Tests.AzureUtils.Utilities
 #elif ORLEANS_TRANSACTIONS
 namespace Orleans.Transactions.AzureStorage.Utilities
+#elif ORLEANS_DIRECTORY
+namespace Orleans.GrainDirectory.AzureStorage.Utilities
 #else
 // No default namespace intentionally to cause compile errors if something is not defined
 #endif
@@ -47,5 +49,6 @@ namespace Orleans.Transactions.AzureStorage.Utilities
         AzureTable_37 = AzureTableBase + 37,
         // Azure storage provider related
         AzureTable_DataNotFound = AzureTableBase + 50,
+        AzureTable_TableNotCreated = AzureTableBase + 51,
     }
 }

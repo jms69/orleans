@@ -1,3 +1,4 @@
+#if !NETCOREAPP
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -47,9 +48,9 @@ namespace Tester.AzureUtils.Streaming
             }
         }
 
-        private class MySiloBuilderConfigurator : ISiloBuilderConfigurator
+        private class MySiloBuilderConfigurator : ISiloConfigurator
         {
-            public void Configure(ISiloHostBuilder hostBuilder)
+            public void Configure(ISiloBuilder hostBuilder)
             {
                 hostBuilder
                     .AddAzureQueueStreams(adapterName, b =>
@@ -123,3 +124,4 @@ namespace Tester.AzureUtils.Streaming
         }
     }
 }
+#endif

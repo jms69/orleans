@@ -1,18 +1,18 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
-using System.Runtime.Remoting.Messaging;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
 using Orleans;
 using Orleans.Runtime;
-using Orleans.Serialization;
 using TestExtensions;
 using Xunit;
 using Tester;
 using Orleans.Internal;
+
+#if !NETCOREAPP
+using System.Runtime.Remoting.Messaging;
+#endif
 
 namespace UnitTests.General
 {
@@ -34,7 +34,6 @@ namespace UnitTests.General
             RequestContextTestUtils.SetActivityId(Guid.Empty);
             RequestContext.Clear();
             headers.Clear();
-            this.fixture.RuntimeClient.ClientInvokeCallback = null;
         }
 
         public void Dispose()
@@ -47,7 +46,6 @@ namespace UnitTests.General
             RequestContextTestUtils.ClearActivityId();
             RequestContext.Clear();
             headers.Clear();
-            this.fixture.RuntimeClient.ClientInvokeCallback = null;
         }
 
         [Fact, TestCategory("Functional"), TestCategory("RequestContext")]
@@ -191,6 +189,8 @@ namespace UnitTests.General
             TestCleanup();
         }
 
+#if !NETCOREAPP
+
         [Fact, TestCategory("Functional"), TestCategory("RequestContext")]
         public async Task LCC_Basic()
         {
@@ -223,6 +223,7 @@ namespace UnitTests.General
             }
             await Task.WhenAll(promises);
         }
+
         [Fact, TestCategory("Functional"), TestCategory("RequestContext")]
         public async Task LCC_Dictionary()
         {
@@ -359,6 +360,7 @@ namespace UnitTests.General
             Assert.Same(dict, result0);  // "Same object LCC.GetData-Task.Run-Get"
             Assert.Equal(data1, result0[name1]);  // "LCC.GetData-Main-Final"
         }
+#endif
 
         [Fact, TestCategory("Functional"), TestCategory("RequestContext")]
         public async Task RequestContext_CrossThread()

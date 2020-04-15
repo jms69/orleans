@@ -43,8 +43,9 @@ namespace Orleans.Streams
             IQueueAdapterFactory adapterFactory,
             IStreamQueueBalancer streamQueueBalancer,
             StreamPullingAgentOptions options,
-            ILoggerFactory loggerFactory)
-            : base(id, runtime.ExecutingSiloAddress, loggerFactory)
+            ILoggerFactory loggerFactory,
+            SiloAddress siloAddress)
+            : base(id, siloAddress, loggerFactory)
         {
             if (string.IsNullOrWhiteSpace(strProviderName))
             {
@@ -75,7 +76,7 @@ namespace Orleans.Streams
             this.adapterFactory = adapterFactory;
 
             queueAdapterCache = adapterFactory.GetQueueAdapterCache();
-            logger = loggerFactory.CreateLogger($"{GetType().FullName}-{streamProviderName}");
+            logger = loggerFactory.CreateLogger($"{GetType().FullName}.{streamProviderName}");
             Log(ErrorCode.PersistentStreamPullingManager_01, "Created {0} for Stream Provider {1}.", GetType().Name, streamProviderName);
             this.loggerFactory = loggerFactory;
             IntValueStatistic.FindOrCreate(new StatisticName(StatisticNames.STREAMS_PERSISTENT_STREAM_NUM_PULLING_AGENTS, strProviderName), () => queuesToAgentsMap.Count);
@@ -212,12 +213,14 @@ namespace Orleans.Streams
             // First create them and store in local queuesToAgentsMap.
             // Only after that Initialize them all.
             var agents = new List<PersistentStreamPullingAgent>();
-            foreach (var queueId in myQueues.Where(queueId => !queuesToAgentsMap.ContainsKey(queueId)))
+            foreach (var queueId in myQueues)
             {
+                if (queuesToAgentsMap.ContainsKey(queueId))
+                    continue;
                 try
                 {
-                    var agentId = GrainId.NewSystemTargetGrainIdByTypeCode(Constants.PULLING_AGENT_SYSTEM_TARGET_TYPE_CODE);
-                    var agent = new PersistentStreamPullingAgent(agentId, streamProviderName, providerRuntime, this.loggerFactory, pubSub, queueId, this.options);
+                    var agentId = LegacyGrainId.NewSystemTargetGrainIdByTypeCode(Constants.PULLING_AGENT_SYSTEM_TARGET_TYPE_CODE);
+                    var agent = new PersistentStreamPullingAgent(agentId, streamProviderName, providerRuntime, this.loggerFactory, pubSub, queueId, this.options, this.Silo);
                     providerRuntime.RegisterSystemTarget(agent);
                     queuesToAgentsMap.Add(queueId, agent);
                     agents.Add(agent);

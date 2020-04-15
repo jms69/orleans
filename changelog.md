@@ -7,6 +7,221 @@ All notable end-user facing changes are documented in this file.
 *Here are all the changes in `master` branch, and will be moved to the appropriate release once they are included in a published nuget package.
 The idea is to track end-user facing changes as they occur.*
 
+### [3.1.5] (changes since 3.1.4)
+
+- Non-breaking improvements
+  - Don't use iowait in cpu calcs on linux (#6444)
+  - TLS: specify an application protocol to satisfy ALPN (#6455)
+  - Change the error about not supported membership table cleanup functionality into a warning. (#6447)
+  - Update obsoletion warning for ISiloBuilderConfigurator (#6461)
+  - Allow GatewayManager initialization to be retried (#6459)
+
+- Non-breaking bug fixes
+  - Consistently sanitize RowKey & PartitionKey properties for Azure Table Storage reminders implementation (#6460)
+
+### [3.1.4] (changes since 3.1.3)
+
+- Non-breaking improvements
+  - Reduce port clashes in TestCluster (#6399, #6413)
+  - Use the overload of ConcurrentDictionary.GetOrAdd that takes a method (#6409)
+  - Ignore not found exception when clearing azure queues (#6419)
+  - MembershipTableCleanupAgent: dispose timer if cleanup is unsupported (#6415)
+  - Allow grain call filters to retry calls (#6414)
+  - Avoid most cases of loggers with non-static category names (#6430)
+  - Free SerializationContext and DeserializationContext between calls (#6433)
+
+- Non-breaking bug fixes
+  - Reminders period overflow issue in ADO.NET Reminders Table (#6390)
+  - Read only the body segment from EventData (#6412)
+
+### [3.1.3] (changes since 3.1.2)
+
+- Breaking changes (for rolling upgrades from 3.1.0 and 3.1.2 running on .NET Core 3.1)
+  - Omit assembly name for all types from System namespace during codegen (#6394)
+  - Fix System namespace classification in Orleans.CodeGenerator (#6396)
+
+- Non-breaking improvements
+  - Amended Linux stats registration to add services on Linux only (#6375)
+  - Update performance counter dependencies (#6397)
+
+### [3.1.2] (changes since 3.1.0)
+
+- Non-breaking improvements
+  - Remove new() constraint for grain persistence (#6351)
+  - Improve TLS troubleshooting experience (#6352)
+  - Remove unnecessary RequestContext.Clear in networking (#6357)
+  - Cleanup GrainBasedReminderTable (#6355)
+  - Avoid using GrainTimer in non-grain contexts (#6342)
+
+- Non-breaking bug fixes
+  - Fix CleanupDefunctSiloMembership & MembershipTableTests (#6344)
+  - Schedule IMembershipTable.CleanupDefunctSiloEntries more frequently (#6346)
+  - CodeGenerator fixes (#6347)
+  - Fix handling of gateways in Orleans.TestingHost (#6348)
+  - Avoid destructuring in log templates (#6356)
+  - Clear RequestContext after use (#6358)
+
+### [3.1.0] (changes since 3.0.0)
+
+- Non-breaking improvements
+  - Azure table grain storage inconsistent state on not found (#6071)
+  - Removed silo status check before cleaing up system targets from… (#6072)
+  - Do not include grain identifier in the ILogger category name (#6122)
+  - Specify endpoint AddressFamily in Socket constructor (#6168)
+  - Make IFatalErrorHandler public so that it can be replaced by users (#6170)
+  - Initial cross-platform build unification (#6183)
+  - Fix 'dotnet pack --no-build' (#6184)
+  - Migrate 'src' subdirectory to new code generator (#6188)
+  - Allow MayInterleaveAttribute on base grains. Fix for issue #6189 (#6192)
+  - Multi-target Orleans sln and tests (#6190)
+  - Serialization optimizations for .NET Core 3.1 (#6207)
+  - Shorten ConcurrentPing_SiloToSilo (#6211)
+  - Add OrleansDebuggerHelper.GetGrainInstance to aid in local debugging (#6221)
+  - Improve logging and tracing, part 1 (#6226)
+  - Mark IGatewayListProvider.IsUpdatable obsolete and avoid blocking refresh calls when possible (#6236)
+  - Expose IClusterMembershipService publicly (#6243)
+  - Minor perf tweak for RequestContext when removing last item (#6216)
+  - Change duplicate activation to a debug-level message (#6246)
+  - Add support Microsoft.Data.SqlClient provider, fix #6229 (#6238)
+  - TestCluster: support configurators for IHostBuilder & ISiloBuilder (#6250)
+  - Adds MySqlConnector library using invariant MySql.Data.MySqlConnector (#6251)
+  - Expose exception when initializing PerfCounterEnvironmentStatistics (#6260)
+  - Minor serialization perf improvements for .NET Core (#6212)
+  - Multi-target TLS connection middleware to netcoreapp3.1 and netstandard2.0 (#6154)
+  - Fix codegen incremental rebuild (#6258)
+  - CodeGen: combine cache file with args file and fix incremental rebuild (#6266)
+  - Avoid performing a lookup when getting WorkItemGroup for SchedulingContext (#6265)
+  - Membership: require a minimum grace period during ungraceful shutdown (#6267)
+  - Provide exception to FailFast in FatalErrorHandler (#6272)
+  - Added support for PAY_PER_REQUEST BillingMode (#6268)
+  - Use RegionEndpoint.GetBySystemName() to resolve AWS region (#6269)
+  - Support Grain Persistency TTL On dynamo DB (#6275, #6287)
+  - Replaced throwing Exception to Logger.LogWarning (#6286)
+  - Added ability to skip client TLS authentication. (#6302)
+  - Use current element for SimpleQueueCacheCursor.Element (#6299)
+  - Manual stats dump #6310 (#6311)
+  - Fix SQL Server connection string (#6320)
+  - Don't set ServiceUrl when region is provided. (#6327)
+  - Explicit setting for UseProvisionedThroughput (#6328)
+  - Add explicit references to System.Diagnostics.EventLog and System.Security.Cryptography.Cng to fix build warnings. (#6329)
+  - Change NETSTANDARD2_1 preprocessor directives to NETCOREAPP (#6332)
+  - Implement CleanupDefunctSiloEntries for DynamoDB membership provider (#6333)
+
+- Non-breaking bug fixes
+  - Consul: support extended membership protocol (#6095)
+  - Fix routing of gateway count changed events to registered servi… (#6102)
+  - Allow negative values in TypeCodeAttribute. Fixes #6114 (#6127)
+  - DynamoDB: support extended membership protocol (#6126)
+  - Redact logged connection string in ADO storage provider during init (#6139)
+  - Fixed CodeGenerator.MSBuild cannot ResolveAssembly in .NetCore 3.0 (#6143)
+  - CodeGen: fix ambiguous reference to Orleans namespace (#6171)
+  - Avoid potential NullReferenceException when re-initializing statistics (#6179)
+  - Close ConnectionManager later in shutdown stage (#6217)
+  - Avoid capturing ExecutionContext in GrainTimer and other timers (#6234)
+  - Fix code gen for ValueTask (#6285)
+  - Add missing dependency to Orleans.CodeGenerator (#6297)
+  - Add System.Threading.Tasks.Extensions dependency to Abstractions (#6301)
+  - Propagate TestClusterOptions.GatewayPerSilo value in TestClusterOptions.ToDictionary() (#6326)
+  - Avoid registering Gateway in DI since it can be null (#6312)
+
+### [3.1.0-rc3] (changes since 3.1.0-rc2)
+
+- Non-breaking bug fixes
+  - Add System.Threading.Tasks.Extensions dependency to Abstractions (#6301)
+
+### [3.1.0-rc2] (changes since 3.1.0-rc1)
+
+- Non-breaking bug fixes
+  - Add missing dependency to Orleans.CodeGenerator (#6297)
+
+### [3.1.0-rc1] (changes since 3.0.2)
+
+- Non-breaking improvements
+  - Initial cross-platform build unification (#6183)
+  - Fix 'dotnet pack --no-build' (#6184)
+  - Migrate 'src' subdirectory to new code generator (#6188)
+  - Allow MayInterleaveAttribute on base grains. Fix for issue #6189 (#6192)
+  - Multi-target Orleans sln and tests (#6190)
+  - Serialization optimizations for .NET Core 3.1 (#6207)
+  - Shorten ConcurrentPing_SiloToSilo (#6211)
+  - Add OrleansDebuggerHelper.GetGrainInstance to aid in local debugging (#6221)
+  - Improve logging and tracing, part 1 (#6226)
+  - Mark IGatewayListProvider.IsUpdatable obsolete and avoid blocking refresh calls when possible (#6236)
+  - Expose IClusterMembershipService publicly (#6243)
+  - Minor perf tweak for RequestContext when removing last item (#6216)
+  - Change duplicate activation to a debug-level message (#6246)
+  - Add support Microsoft.Data.SqlClient provider, fix #6229 (#6238)
+  - TestCluster: support configurators for IHostBuilder & ISiloBuilder (#6250)
+  - Adds MySqlConnector library using invariant MySql.Data.MySqlConnector (#6251)
+  - Expose exception when initializing PerfCounterEnvironmentStatistics (#6260)
+  - Minor serialization perf improvements for .NET Core (#6212)
+  - Multi-target TLS connection middleware to netcoreapp3.1 and netstandard2.0 (#6154)
+  - Fix codegen incremental rebuild (#6258)
+  - CodeGen: combine cache file with args file and fix incremental rebuild (#6266)
+  - Avoid performing a lookup when getting WorkItemGroup for SchedulingContext (#6265)
+  - Membership: require a minimum grace period during ungraceful shutdown (#6267)
+  - Provide exception to FailFast in FatalErrorHandler (#6272)
+  - Added support for PAY_PER_REQUEST BillingMode (#6268)
+  - Use RegionEndpoint.GetBySystemName() to resolve AWS region (#6269)
+  - Support Grain Persistency TTL On dynamo DB (#6275, #6287)
+  - Replaced throwing Exception to Logger.LogWarning (#6286)
+
+- Non-breaking bug fixes
+  - Avoid potential NullReferenceException when re-initializing statistics (#6179)
+  - Close ConnectionManager later in shutdown stage (#6217)
+  - Avoid capturing ExecutionContext in GrainTimer and other timers (#6234)
+  - Fix code gen for ValueTask (#6285)
+
+### [2.4.5] (changes since 2.4.4)
+
+- Non-breaking improvements
+  - Make IFatalErrorHandler public so that it can be replaced by users (#6170)
+  - Allow MayInterleaveAttribute on base grains. Fix for issue #6189 (#6192)
+
+- Non-breaking bug fixes
+  - Azure table grain storage inconsistent state on not found (#6071)
+  - Removed silo status check before cleaning up system targets from… (#6072)
+  - CodeGen: fix ambiguous reference to Orleans namespace (#6171)
+
+### [3.0.2] (changes since 3.0.1)
+
+- Non-breaking improvements
+  - Specify endpoint AddressFamily in Socket constructor (#6168)
+  - Make IFatalErrorHandler public so that it can be replaced by users (#6170)
+ 
+- Non-breaking bug fixes
+  - CodeGen: fix ambiguous reference to Orleans namespace (#6171)
+
+### [3.0.1] (changes since 3.0.0)
+
+- Non-breaking improvements
+  - Azure table grain storage inconsistent state on not found (#6071)
+  - Removed silo status check before cleaing up system targets from… (#6072)
+  - Do not include grain identifier in the ILogger category name (#6122)
+ 
+- Non-breaking bug fixes
+  - Consul: support extended membership protocol (#6095)
+  - Fix routing of gateway count changed events to registered servi… (#6102)
+  - Allow negative values in TypeCodeAttribute. Fixes #6114 (#6127)
+  - DynamoDB: support extended membership protocol (#6126)
+  - Redact logged connection string in ADO storage provider during init (#6139)
+  - Fixed CodeGenerator.MSBuild cannot ResolveAssembly in .NetCore 3.0 (#6143)
+
+### [2.4.4] (changes since 2.4.3)
+
+- Non-breaking improvements
+  - Add warning message at startup (#6041)
+  - Implement CleanupDefunctSiloEntries for Consul membership provider (#6056)
+  - Fixed typo in exception (#6091)
+
+- Non-breaking bug fixes
+  - Fix potential rare NullReferenceException in GrainTimer (#6043)
+  - Consul: support extended membership protocol (#6095)
+  - Fix routing of gateway count changed events to registered servi… (#6102)
+  - Allow negative values in TypeCodeAttribute. Fixes #6114 (#6127)
+  - DynamoDB: support extended membership protocol (#6126)
+  - Redact logged connection string in ADO storage provider during init (#6139)
+
 ### [3.0.0] (changes since 3.0.0-rc2)
 
 - Non-breaking improvements
@@ -1291,7 +1506,7 @@ Two fixes backported from v2.x
   - Make PreferLocalPlacement activate in other silos when shutting down #2276
   - Reset GrainClient.ClientInvokeCallback when uninitializing GrainClient #2299
   - Fix ObjectDisposedException in networking layer #2302
-  - Reset client gateway reciever buffer on socket reset. #2316
+  - Reset client gateway receiver buffer on socket reset. #2316
   - Removed calling Trace.Close() from TelemetryConsumer.Close() #2396
   - Removes deadlocking and corrupted hashing in SQL storage provider #2395
   - Fix #2358: Invoke interceptor broken for generic grains #2502
@@ -1327,7 +1542,7 @@ Two fixes backported from v2.x
   - Release BinaryTokenStreamWriter buffers after use in more cases. #2326
   - Provide better handling in Grain when the GrainRuntime or GrainIdentity is null #2338
 - Bug fixes
-  - Reset client gateway reciever buffer on socket reset. #2316
+  - Reset client gateway receiver buffer on socket reset. #2316
   - Removes potential deadlocking and corrupted hashing in ADO.NET storage provider #2395
   - LoadShedQueueFlowControl cast fix #2405
 

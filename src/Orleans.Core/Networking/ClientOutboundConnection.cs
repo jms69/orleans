@@ -20,13 +20,11 @@ namespace Orleans.Runtime.Messaging
             SiloAddress remoteSiloAddress,
             ConnectionContext connection,
             ConnectionDelegate middleware,
-            MessageFactory messageFactory,
-            IServiceProvider serviceProvider,
             ClientMessageCenter messageCenter,
-            INetworkingTrace trace,
             ConnectionManager connectionManager,
-            ConnectionOptions connectionOptions)
-            : base(connection, middleware, messageFactory, serviceProvider, trace)
+            ConnectionOptions connectionOptions,
+            ConnectionCommon connectionShared)
+            : base(connection, middleware, connectionShared)
         {
             this.messageCenter = messageCenter;
             this.connectionManager = connectionManager;
@@ -86,7 +84,7 @@ namespace Orleans.Runtime.Messaging
             if (!this.IsValid)
             {
                 // Recycle the message we've dequeued. Note that this will recycle messages that were queued up to be sent when the gateway connection is declared dead
-                msg.TargetActivation = null;
+                msg.TargetActivation = default;
                 msg.TargetSilo = null;
                 this.messageCenter.SendMessage(msg);
                 return false;
@@ -95,8 +93,8 @@ namespace Orleans.Runtime.Messaging
             if (msg.TargetSilo != null) return true;
 
             msg.TargetSilo = this.remoteSiloAddress;
-            if (msg.TargetGrain.IsSystemTarget)
-                msg.TargetActivation = ActivationId.GetSystemActivation(msg.TargetGrain, msg.TargetSilo);
+            if (msg.TargetGrain.IsSystemTarget())
+                msg.TargetActivation = ActivationId.GetDeterministic(msg.TargetGrain);
 
             return true;
         }

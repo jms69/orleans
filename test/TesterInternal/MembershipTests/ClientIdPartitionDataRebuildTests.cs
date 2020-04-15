@@ -92,7 +92,7 @@ namespace UnitTests.MembershipTests
         private async Task<T> SetupTestAndPickGrain<T>(Func<T, Task<string>> getRuntimeInstanceId) where T : class, IGrainWithIntegerKey
         {
             // Ensure the client entry is on Silo2 partition
-            GrainId clientId = null;
+            GrainId clientId = default;
             CreateAndDeployTestCluster();
             for (var i = 0; i < 100; i++)
             {
@@ -108,10 +108,10 @@ namespace UnitTests.MembershipTests
                 {
                     break;
                 }
-                clientId = null;
+                clientId = default;
                 await this.hostedCluster.KillClientAsync();
             }
-            Assert.NotNull(clientId);
+            Assert.False(clientId.IsDefault);
 
             // Ensure grain is activated on Silo3
             T grain = null;
@@ -140,9 +140,9 @@ namespace UnitTests.MembershipTests
             this.hostedCluster.Deploy();
         }
 
-        public class SiloConfigurator : ISiloBuilderConfigurator
+        public class SiloConfigurator : ISiloConfigurator
         {
-            public void Configure(ISiloHostBuilder hostBuilder)
+            public void Configure(ISiloBuilder hostBuilder)
             {
                 hostBuilder.Configure<ClusterMembershipOptions>(options =>
                 {
@@ -165,7 +165,15 @@ namespace UnitTests.MembershipTests
 
         public void Dispose()
         {
-            this.hostedCluster?.StopAllSilos();
+            try
+            {
+                hostedCluster?.StopAllSilos();
+            }
+            finally
+            {
+                hostedCluster?.Dispose();
+                hostedCluster = null;
+            }
         }
     }
 }

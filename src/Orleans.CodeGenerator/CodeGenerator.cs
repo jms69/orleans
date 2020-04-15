@@ -36,7 +36,7 @@ namespace Orleans.CodeGenerator
             this.compilation = compilation;
             this.options = options;
             this.log = log;
-            this.wellKnownTypes = WellKnownTypes.FromCompilation(compilation);
+            this.wellKnownTypes = new WellKnownTypes(compilation);
             this.compilationAnalyzer = new CompilationAnalyzer(log, this.wellKnownTypes, compilation);
 
             var firstSyntaxTree = compilation.SyntaxTrees.FirstOrDefault() ?? throw new InvalidOperationException("Compilation has no syntax trees.");
@@ -131,7 +131,7 @@ namespace Orleans.CodeGenerator
             // Check that all types which the developer marked as requiring code generation have had code generation.
             foreach (var required in this.compilationAnalyzer.CodeGenerationRequiredTypes)
             {
-                if (!model.Serializers.SerializerTypes.Any(t => t.Target.Equals(required)))
+                if (!model.Serializers.SerializerTypes.Any(t => SymbolEqualityComparer.Default.Equals(t.Target, required)))
                 {
                     throw new CodeGenerationException(
                         $"Found {this.wellKnownTypes.ConsiderForCodeGenerationAttribute} with ThrowOnFailure set for type {required}, but a serializer" +
@@ -349,7 +349,7 @@ namespace Orleans.CodeGenerator
                         this.log.LogTrace($"{nameof(ProcessSerializableType)} type {type} is a serializer for {target}");
                     }
 
-                    if (target.Equals(type))
+                    if (SymbolEqualityComparer.Default.Equals(target, type))
                     {
                         selfSerializing = true;
                         typeSyntax = type.WithoutTypeParameters().ToTypeSyntax();
@@ -390,14 +390,24 @@ namespace Orleans.CodeGenerator
                 return;
             }
 
-            if (type.TypeParameters.Any(p => p.ConstraintTypes.Any(c => c.Equals(this.wellKnownTypes.Delegate))))
+            if (type.TypeKind == TypeKind.Enum)
+            {
+                if (this.log.IsEnabled(LogLevel.Trace))
+                {
+                    this.log.LogTrace($"{nameof(ProcessSerializableType)} type {type} is an enum type and no serializer will be generated for it");
+                }
+
+                return;
+            }
+
+            if (type.TypeParameters.Any(p => p.ConstraintTypes.Any(c => SymbolEqualityComparer.Default.Equals(c, this.wellKnownTypes.Delegate))))
             {
                 if (this.log.IsEnabled(LogLevel.Trace)) this.log.LogTrace($"{nameof(ProcessSerializableType)} skipping type with Delegate parameter constraint, {type}");
                 return;
             }
 
             var isSerializable = this.compilationAnalyzer.IsSerializable(type);
-            if (this.compilationAnalyzer.IsFromKnownAssembly(type) && isSerializable)
+            if (isSerializable && this.compilationAnalyzer.IsFromKnownAssembly(type))
             {
                 // Skip types which have fields whose types are inaccessible from generated code.
                 foreach (var field in type.GetInstanceMembers<IFieldSymbol>())
@@ -468,11 +478,6 @@ namespace Orleans.CodeGenerator
                 return false;
             }
 
-            if (type.HasUnsupportedMetadata)
-            {
-                return false;
-            }
-
             if (type.SpecialType != SpecialType.None)
             {
                 return false;
@@ -489,16 +494,19 @@ namespace Orleans.CodeGenerator
                 case TypeKind.Pointer:
                 case TypeKind.TypeParameter:
                 case TypeKind.Submission:
-                {
                     return false;
-                }
             }
 
             if (type.IsStatic)
             {
                 return false;
             }
-            
+
+            if (type.HasUnsupportedMetadata)
+            {
+                return false;
+            }
+
             if (this.log.IsEnabled(LogLevel.Trace)) this.log.LogTrace($"{nameof(ValidForKnownTypes)} adding type {type}");
 
             return true;

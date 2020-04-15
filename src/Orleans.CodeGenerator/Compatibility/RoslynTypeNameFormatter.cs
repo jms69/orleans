@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -201,8 +201,7 @@ namespace Orleans.CodeGenerator.Compatibility
                             builder.Append(assembly.Identity.GetDisplayName());
                             break;
                         case Style.RuntimeTypeNameFormatter:
-                            var isSystemAssembly = type.ContainingAssembly.GetTypeByMetadataName("System.Int32") != null;
-                            if (isSystemAssembly) return;
+                            if (RoslynTypeHelper.IsSystemNamespace(type.ContainingNamespace)) return;
                             builder.Append(",");
                             builder.Append(assembly.Identity.Name);
                             break;

@@ -125,7 +125,7 @@ namespace Tester.AzureUtils.Persistence
 
             var grainState = TestStoreGrainState.NewRandomState(stringLength);
             EnsureEnvironmentSupportsState(grainState);
-            var grainId = GrainId.NewId();
+            var grainId = LegacyGrainId.NewId();
 
             var store = await InitAzureTableGrainStorage(useJsonForWrite);
 
@@ -153,7 +153,7 @@ namespace Tester.AzureUtils.Persistence
             var grainState = TestStoreGrainState.NewRandomState(stringLength);
             EnsureEnvironmentSupportsState(grainState);
 
-            var grainId = GrainId.NewId();
+            var grainId = LegacyGrainId.NewId();
 
             var store = await InitAzureTableGrainStorage(useJsonForFirstWrite);
 
@@ -225,7 +225,7 @@ namespace Tester.AzureUtils.Persistence
                 MockCallsOnly = true
             }, NullLoggerFactory.Instance, this.providerRuntime.ServiceProvider.GetService<IGrainFactory>());
 
-            GrainReference reference = this.fixture.InternalGrainFactory.GetGrain(GrainId.NewId());
+            GrainReference reference = this.fixture.InternalGrainFactory.GetGrain(LegacyGrainId.NewId());
             var state = TestStoreGrainState.NewRandomState();
             Stopwatch sw = new Stopwatch();
             sw.Start();
@@ -240,37 +240,6 @@ namespace Tester.AzureUtils.Persistence
             TimeSpan readTime = sw.Elapsed;
             this.output.WriteLine("{0} - Read time = {1}", store.GetType().FullName, readTime);
             Assert.True(readTime >= expectedLatency, $"Read: Expected minimum latency = {expectedLatency} Actual = {readTime}");
-        }
-
-        [Fact, TestCategory("Performance"), TestCategory("JSON")]
-        public void Json_Perf_Newtonsoft_vs_Net()
-        {
-            const int numIterations = 10000;
-
-            Dictionary<string, object> dataValues = new Dictionary<string, object>();
-            var dotnetJsonSerializer = new System.Web.Script.Serialization.JavaScriptSerializer();
-            string jsonData = null;
-            int[] idx = { 0 };
-            TimeSpan baseline = TestUtils.TimeRun(numIterations, TimeSpan.Zero, ".Net JavaScriptSerializer",
-            () =>
-            {
-                dataValues.Clear();
-                dataValues.Add("A", idx[0]++);
-                dataValues.Add("B", idx[0]++);
-                dataValues.Add("C", idx[0]++);
-                jsonData = dotnetJsonSerializer.Serialize(dataValues);
-            });
-            idx[0] = 0;
-            TimeSpan elapsed = TestUtils.TimeRun(numIterations, baseline, "Newtonsoft Json JavaScriptSerializer",
-            () =>
-            {
-                dataValues.Clear();
-                dataValues.Add("A", idx[0]++);
-                dataValues.Add("B", idx[0]++);
-                dataValues.Add("C", idx[0]++);
-                jsonData = Newtonsoft.Json.JsonConvert.SerializeObject(dataValues);
-            });
-            this.output.WriteLine("Elapsed: {0} Date: {1}", elapsed, jsonData);
         }
 
         [Fact, TestCategory("Functional")]
@@ -303,9 +272,9 @@ namespace Tester.AzureUtils.Persistence
         }
 
         private async Task Test_PersistenceProvider_Read(string grainTypeName, IGrainStorage store,
-            GrainState<TestStoreGrainState> grainState = null, GrainId grainId = null)
+            GrainState<TestStoreGrainState> grainState = null, GrainId grainId = default)
         {
-            var reference = this.fixture.InternalGrainFactory.GetGrain(grainId ?? GrainId.NewId());
+            var reference = this.fixture.InternalGrainFactory.GetGrain(grainId.IsDefault ? (GrainId)LegacyGrainId.NewId() : grainId);
 
             if (grainState == null)
             {
@@ -328,9 +297,9 @@ namespace Tester.AzureUtils.Persistence
         }
 
         private async Task<GrainState<TestStoreGrainState>> Test_PersistenceProvider_WriteRead(string grainTypeName,
-            IGrainStorage store, GrainState<TestStoreGrainState> grainState = null, GrainId grainId = null)
+            IGrainStorage store, GrainState<TestStoreGrainState> grainState = null, GrainId grainId = default)
         {
-            GrainReference reference = this.fixture.InternalGrainFactory.GetGrain(grainId ?? GrainId.NewId());
+            GrainReference reference = this.fixture.InternalGrainFactory.GetGrain(grainId.IsDefault ? (GrainId)LegacyGrainId.NewId() : grainId);
 
             if (grainState == null)
             {
@@ -360,9 +329,9 @@ namespace Tester.AzureUtils.Persistence
         }
 
         private async Task<GrainState<TestStoreGrainState>> Test_PersistenceProvider_WriteClearRead(string grainTypeName,
-            IGrainStorage store, GrainState<TestStoreGrainState> grainState = null, GrainId grainId = null)
+            IGrainStorage store, GrainState<TestStoreGrainState> grainState = null, GrainId grainId = default)
         {
-            GrainReference reference = this.fixture.InternalGrainFactory.GetGrain(grainId ?? GrainId.NewId());
+            GrainReference reference = this.fixture.InternalGrainFactory.GetGrain(grainId.IsDefault ? (GrainId)LegacyGrainId.NewId() : grainId);
 
             if (grainState == null)
             {

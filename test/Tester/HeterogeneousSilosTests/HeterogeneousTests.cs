@@ -1,3 +1,4 @@
+#if !NETCOREAPP
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -39,9 +40,9 @@ namespace Tester.HeterogeneousSilosTests
             cluster.Deploy();
         }
 
-        public class SiloConfigurator : ISiloBuilderConfigurator
+        public class SiloConfigurator : ISiloConfigurator
         {
-            public void Configure(ISiloHostBuilder hostBuilder)
+            public void Configure(ISiloBuilder hostBuilder)
             {
                 hostBuilder.Configure<SiloMessagingOptions>(options => options.AssumeHomogenousSilosForTesting = false);
                 hostBuilder.Configure<TypeManagementOptions>(options => options.TypeMapRefreshInterval = RefreshInterval);
@@ -76,7 +77,7 @@ namespace Tester.HeterogeneousSilosTests
 
         public void Dispose()
         {
-            cluster?.StopAllSilos();
+            cluster?.Dispose();
             cluster = null;
         }
 
@@ -200,8 +201,18 @@ namespace Tester.HeterogeneousSilosTests
 
         public async Task DisposeAsync()
         {
-            if (this.cluster == null) return;
-            await cluster.StopAllSilosAsync();
+            try
+            {
+                if (this.cluster is TestCluster c)
+                {
+                    await c.StopAllSilosAsync();
+                }
+            }
+            finally
+            {
+                this.cluster?.Dispose();
+            }
         }
     }
 }
+#endif

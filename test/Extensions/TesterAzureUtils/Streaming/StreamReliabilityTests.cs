@@ -1,3 +1,4 @@
+#if !NETCOREAPP
 //#define USE_GENERICS
 //#define DELETE_AFTER_TEST
 
@@ -75,14 +76,13 @@ namespace UnitTests.Streaming.Reliability
             }
         }
 
-        public class SiloBuilderConfigurator : ISiloBuilderConfigurator
+        public class SiloBuilderConfigurator : ISiloConfigurator
         {
-            public void Configure(ISiloHostBuilder hostBuilder)
+            public void Configure(ISiloBuilder hostBuilder)
             {
                 hostBuilder.UseAzureStorageClustering(options =>
                 {
                     options.ConnectionString = TestDefaultConfiguration.DataConnectionString;
-                    options.MaxStorageBusyRetries = 3;
                 })
                 .AddAzureTableGrainStorage("AzureStore", builder => builder.Configure<IOptions<ClusterOptions>>((options, silo) =>
                     {
@@ -1137,3 +1137,4 @@ namespace UnitTests.Streaming.Reliability
 }
 
 // ReSharper restore ConvertToConstant.Local
+#endif

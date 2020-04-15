@@ -1,14 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using Microsoft.Extensions.Logging;
 using Orleans.CodeGeneration;
 using Orleans.Serialization;
 using Orleans.Transactions;
 
 namespace Orleans.Runtime
 {
-    internal class Message : IOutgoingMessage
+    internal class Message
     {
         public const int LENGTH_HEADER_SIZE = 8;
         public const int LENGTH_META_HEADER = 4;
@@ -28,7 +27,6 @@ namespace Orleans.Runtime
             set { _targetHistory = value; }
         }
 
-        
         public DateTime? QueuedTime
         {
             get { return _queuedTime; }
@@ -292,19 +290,13 @@ namespace Orleans.Runtime
             if (id == null) return false;
 
             // don't set expiration for one way, system target and system grain messages.
-            return Direction != Directions.OneWay && !id.IsSystemTarget;
+            return Direction != Directions.OneWay && !id.IsSystemTarget();
         }
 
         public ITransactionInfo TransactionInfo
         {
             get { return Headers.TransactionInfo; }
             set { Headers.TransactionInfo = value; }
-        }
-
-        public string DebugContext
-        {
-            get { return GetNotNullString(Headers.DebugContext); }
-            set { Headers.DebugContext = value; }
         }
 
         public List<ActivationAddress> CacheInvalidationHeader
@@ -392,13 +384,6 @@ namespace Orleans.Runtime
         {
             var sb = new StringBuilder();
 
-            string debugContex = DebugContext;
-            if (!string.IsNullOrEmpty(debugContex))
-            {
-                // if DebugContex is present, print it first.
-                sb.Append(debugContex).Append(".");
-            }
-
             AppendIfExists(HeadersContainer.Headers.CACHE_INVALIDATION_HEADER, sb, (m) => m.CacheInvalidationHeader);
             AppendIfExists(HeadersContainer.Headers.CATEGORY, sb, (m) => m.Category);
             AppendIfExists(HeadersContainer.Headers.DIRECTION, sb, (m) => m.Direction);
@@ -458,7 +443,7 @@ namespace Orleans.Runtime
                         break;
                 }
             }
-            return String.Format("{0}{1}{2}{3}{4} {5}->{6} #{7}{8}: {9}",
+            return String.Format("{0}{1}{2}{3}{4} {5}->{6} #{7}{8}",
                 IsReadOnly ? "ReadOnly " : "", //0
                 IsAlwaysInterleave ? "IsAlwaysInterleave " : "", //1
                 IsNewPlacement ? "NewPlacement " : "", // 2
@@ -467,8 +452,7 @@ namespace Orleans.Runtime
                 String.Format("{0}{1}{2}", SendingSilo, SendingGrain, SendingActivation), //5
                 String.Format("{0}{1}{2}{3}", TargetSilo, TargetGrain, TargetActivation, TargetObserverId), //6
                 Id, //7
-                ForwardCount > 0 ? "[ForwardCount=" + ForwardCount + "]" : "", //8
-                DebugContext); //9
+                ForwardCount > 0 ? "[ForwardCount=" + ForwardCount + "]" : ""); //8
         }
 
         internal void SetTargetPlacement(PlacementResult value)
@@ -496,7 +480,7 @@ namespace Orleans.Runtime
             {
                 history.Append(TargetGrain).Append(":");
             }
-            if (TargetActivation != null)
+            if (TargetActivation is object)
             {
                 history.Append(TargetActivation);
             }
@@ -506,12 +490,6 @@ namespace Orleans.Runtime
                 history.Append("    ").Append(TargetHistory);
             }
             return history.ToString();
-        }
-
-        public bool IsSameDestination(IOutgoingMessage other)
-        {
-            var msg = (Message)other;
-            return msg != null && Object.Equals(TargetSilo, msg.TargetSilo);
         }
 
         // For statistical measuring of time spent in queues.
@@ -549,12 +527,6 @@ namespace Orleans.Runtime
             };
         }
 
-        internal void DropExpiredMessage(ILogger logger, MessagingStatisticsGroup.Phase phase)
-        {
-            logger.LogWarning((int)ErrorCode.Messaging_DroppingExpiredMessage, "Dropped expired message during {Phase} phase.  Message: {Message}", phase.ToString(), logger.IsEnabled(LogLevel.Trace) ? this.ToLongString() : this.ToString());
-            MessagingStatisticsGroup.OnMessageExpired(phase);
-        }
-
         private static int BufferLength(List<ArraySegment<byte>> buffer)
         {
             var result = 0;
@@ -577,7 +549,7 @@ namespace Orleans.Runtime
                 CACHE_INVALIDATION_HEADER = 1 << 1,
                 CATEGORY = 1 << 2,
                 CORRELATION_ID = 1 << 3,
-                DEBUG_CONTEXT = 1 << 4,
+                DEBUG_CONTEXT = 1 << 4, // No longer used
                 DIRECTION = 1 << 5,
                 TIME_TO_LIVE = 1 << 6,
                 FORWARD_COUNT = 1 << 7,
@@ -633,7 +605,6 @@ namespace Orleans.Runtime
             private ResponseTypes _result;
             private ITransactionInfo _transactionInfo;
             private TimeSpan? _timeToLive;
-            private string _debugContext;
             private List<ActivationAddress> _cacheInvalidationHeader;
             private string _newGrainType;
             private string _genericGrainType;
@@ -847,16 +818,6 @@ namespace Orleans.Runtime
                 }
             }
 
-
-            public string DebugContext
-            {
-                get { return _debugContext; }
-                set
-                {
-                    _debugContext = value;
-                }
-            }
-
             public List<ActivationAddress> CacheInvalidationHeader
             {
                 get { return _cacheInvalidationHeader; }
@@ -947,18 +908,17 @@ namespace Orleans.Runtime
                     headers = headers | Headers.FORWARD_COUNT;
 
                 headers = _targetSilo == null ? headers & ~Headers.TARGET_SILO : headers | Headers.TARGET_SILO;
-                headers = _targetGrain == null ? headers & ~Headers.TARGET_GRAIN : headers | Headers.TARGET_GRAIN;
-                headers = _targetActivation == null ? headers & ~Headers.TARGET_ACTIVATION : headers | Headers.TARGET_ACTIVATION;
-                headers = _targetObserverId == null ? headers & ~Headers.TARGET_OBSERVER : headers | Headers.TARGET_OBSERVER;
-                headers = _sendingSilo == null ? headers & ~Headers.SENDING_SILO : headers | Headers.SENDING_SILO;
-                headers = _sendingGrain == null ? headers & ~Headers.SENDING_GRAIN : headers | Headers.SENDING_GRAIN;
-                headers = _sendingActivation == null ? headers & ~Headers.SENDING_ACTIVATION : headers | Headers.SENDING_ACTIVATION;
+                headers = _targetGrain.IsDefault ? headers & ~Headers.TARGET_GRAIN : headers | Headers.TARGET_GRAIN;
+                headers = _targetActivation is null ? headers & ~Headers.TARGET_ACTIVATION : headers | Headers.TARGET_ACTIVATION;
+                headers = _targetObserverId is null ? headers & ~Headers.TARGET_OBSERVER : headers | Headers.TARGET_OBSERVER;
+                headers = _sendingSilo is null ? headers & ~Headers.SENDING_SILO : headers | Headers.SENDING_SILO;
+                headers = _sendingGrain.IsDefault ? headers & ~Headers.SENDING_GRAIN : headers | Headers.SENDING_GRAIN;
+                headers = _sendingActivation is null ? headers & ~Headers.SENDING_ACTIVATION : headers | Headers.SENDING_ACTIVATION;
                 headers = _isNewPlacement == default(bool) ? headers & ~Headers.IS_NEW_PLACEMENT : headers | Headers.IS_NEW_PLACEMENT;
                 headers = _isReturnedFromRemoteCluster == default(bool) ? headers & ~Headers.IS_RETURNED_FROM_REMOTE_CLUSTER : headers | Headers.IS_RETURNED_FROM_REMOTE_CLUSTER;
                 headers = _isUsingIfaceVersion == default(bool) ? headers & ~Headers.IS_USING_INTERFACE_VERSION : headers | Headers.IS_USING_INTERFACE_VERSION;
                 headers = _result == default(ResponseTypes)? headers & ~Headers.RESULT : headers | Headers.RESULT;
                 headers = _timeToLive == null ? headers & ~Headers.TIME_TO_LIVE : headers | Headers.TIME_TO_LIVE;
-                headers = string.IsNullOrEmpty(_debugContext) ? headers & ~Headers.DEBUG_CONTEXT : headers | Headers.DEBUG_CONTEXT;
                 headers = _cacheInvalidationHeader == null || _cacheInvalidationHeader.Count == 0 ? headers & ~Headers.CACHE_INVALIDATION_HEADER : headers | Headers.CACHE_INVALIDATION_HEADER;
                 headers = string.IsNullOrEmpty(_newGrainType) ? headers & ~Headers.NEW_GRAIN_TYPE : headers | Headers.NEW_GRAIN_TYPE;
                 headers = string.IsNullOrEmpty(GenericGrainType) ? headers & ~Headers.GENERIC_GRAIN_TYPE : headers | Headers.GENERIC_GRAIN_TYPE;
@@ -1000,9 +960,6 @@ namespace Orleans.Runtime
                 {
                     writer.Write((byte)input.Category);
                 }
-
-                if ((headers & Headers.DEBUG_CONTEXT) != Headers.NONE)
-                    writer.Write(input.DebugContext);
 
                 if ((headers & Headers.DIRECTION) != Headers.NONE)
                     writer.Write((byte)input.Direction.Value);
@@ -1136,7 +1093,7 @@ namespace Orleans.Runtime
                     result.Category = (Categories)reader.ReadByte();
 
                 if ((headers & Headers.DEBUG_CONTEXT) != Headers.NONE)
-                    result.DebugContext = reader.ReadString();
+                    _ = reader.ReadString();
 
                 if ((headers & Headers.DIRECTION) != Headers.NONE)
                     result.Direction = (Message.Directions)reader.ReadByte();

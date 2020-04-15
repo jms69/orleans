@@ -1,3 +1,4 @@
+#if !NETCOREAPP
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -57,9 +58,9 @@ namespace UnitTests.StreamingTests
             }
         }
 
-        private class MySiloBuilderConfigurator : ISiloBuilderConfigurator
+        private class MySiloBuilderConfigurator : ISiloConfigurator
         {
-            public void Configure(ISiloHostBuilder hostBuilder)
+            public void Configure(ISiloBuilder hostBuilder)
             {
                 hostBuilder
                     .AddSimpleMessageStreamProvider(SmsStreamProviderName)
@@ -310,3 +311,4 @@ namespace UnitTests.StreamingTests
         }
     }
 }
+#endif

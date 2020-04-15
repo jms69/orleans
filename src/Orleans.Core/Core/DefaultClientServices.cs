@@ -35,12 +35,12 @@ namespace Orleans
             services.TryAddSingleton<IHostEnvironmentStatistics, NoOpHostEnvironmentStatistics>();
             services.TryAddSingleton<IAppEnvironmentStatistics, AppEnvironmentStatistics>();
             services.TryAddSingleton<ClientStatisticsManager>();
+            services.TryAddFromExisting<IStatisticsManager, ClientStatisticsManager>();
             services.TryAddSingleton<ApplicationRequestsStatisticsGroup>();
             services.TryAddSingleton<StageAnalysisStatisticsGroup>();
             services.TryAddSingleton<SchedulerStatisticsGroup>();
             services.TryAddSingleton<SerializationStatisticsGroup>();
             services.AddLogging();
-            services.TryAddSingleton<ExecutorService>();
             services.TryAddSingleton<TypeMetadataCache>();
             services.TryAddSingleton<OutsideRuntimeClient>();
             services.TryAddFromExisting<IRuntimeClient, OutsideRuntimeClient>();
@@ -97,6 +97,7 @@ namespace Orleans
             services.AddSingleton<SharedMemoryPool>();
 
             // Networking
+            services.TryAddSingleton<ConnectionCommon>();
             services.TryAddSingleton<ConnectionManager>();
             services.AddSingleton<ILifecycleParticipant<IClusterClientLifecycle>, ConnectionManagerLifecycleAdapter<IClusterClientLifecycle>>();
 
@@ -111,7 +112,8 @@ namespace Orleans
             services.TryAddSingleton<ClientMessageCenter>(sp => sp.GetRequiredService<OutsideRuntimeClient>().MessageCenter);
             services.TryAddFromExisting<IMessageCenter, ClientMessageCenter>();
             services.AddSingleton<GatewayManager>();
-            services.TryAddSingleton<INetworkingTrace, NetworkingTrace>();
+            services.AddSingleton<NetworkingTrace>();
+            services.AddSingleton<MessagingTrace>();
         }
     }
 }

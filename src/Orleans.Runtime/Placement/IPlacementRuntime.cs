@@ -12,11 +12,9 @@ namespace Orleans.Runtime.Placement
         /// <param name="grain"></param>
         /// <param name="addresses">Local addresses will always be complete, remote may be partial</param>
         /// <returns>True if remote addresses are complete within freshness constraint</returns>
-        bool FastLookup(GrainId grain, out AddressesAndTag addresses);
+        bool FastLookup(GrainId grain, out List<ActivationAddress> addresses);
 
-        Task<AddressesAndTag> FullLookup(GrainId grain);
-
-        Task<AddressesAndTag> LookupInCluster(GrainId grain, string clusterId);
+        Task<List<ActivationAddress>> FullLookup(GrainId grain);
 
         bool LocalLookup(GrainId grain, out List<ActivationData> addresses);
         
@@ -28,7 +26,7 @@ namespace Orleans.Runtime.Placement
         /// <returns></returns>
         bool TryGetActivationData(ActivationId id, out ActivationData activationData);
 
-        void GetGrainTypeInfo(int typeCode, out string grainClass, out PlacementStrategy placement, out MultiClusterRegistrationStrategy strategy, string genericArguments = null);
+        void GetGrainTypeInfo(int typeCode, out string grainClass, out PlacementStrategy placement, string genericArguments = null);
     }
 
     internal static class PlacementRuntimeExtensions
@@ -37,33 +35,31 @@ namespace Orleans.Runtime.Placement
         {
             string unused;
             PlacementStrategy placement;
-            MultiClusterRegistrationStrategy unusedActivationStrategy;
-            @this.GetGrainTypeInfo(typeCode, out unused, out placement, out unusedActivationStrategy, genericArguments);
+            @this.GetGrainTypeInfo(typeCode, out unused, out placement, genericArguments);
             return placement;
         }
 
         public static PlacementStrategy GetGrainPlacementStrategy(this IPlacementRuntime @this, GrainId grainId, string genericArguments = null)
         {
-            return @this.GetGrainPlacementStrategy(grainId.TypeCode, genericArguments);
+            return @this.GetGrainPlacementStrategy(((LegacyGrainId)grainId).TypeCode, genericArguments);
         }
 
         public static string GetGrainTypeName(this IPlacementRuntime @this, int typeCode, string genericArguments = null)
         {
             string grainClass;
             PlacementStrategy unused;
-            MultiClusterRegistrationStrategy unusedActivationStrategy;
-            @this.GetGrainTypeInfo(typeCode, out grainClass, out unused, out unusedActivationStrategy, genericArguments);
+            @this.GetGrainTypeInfo(typeCode, out grainClass, out unused, genericArguments);
             return grainClass;
         }
 
         public static string GetGrainTypeName(this IPlacementRuntime @this, GrainId grainId, string genericArguments = null)
         {
-            return @this.GetGrainTypeName(grainId.TypeCode, genericArguments);
+            return @this.GetGrainTypeName(grainId, genericArguments);
         }
 
-        public static void GetGrainTypeInfo(this IPlacementRuntime @this, GrainId grainId, out string grainClass, out PlacementStrategy placement, out MultiClusterRegistrationStrategy activationStrategy, string genericArguments = null)
+        public static void GetGrainTypeInfo(this IPlacementRuntime @this, GrainId grainId, out string grainClass, out PlacementStrategy placement, string genericArguments = null)
         {
-            @this.GetGrainTypeInfo(grainId.TypeCode, out grainClass, out placement, out activationStrategy, genericArguments);
+            @this.GetGrainTypeInfo(grainId, out grainClass, out placement, genericArguments);
         }
     }
 }

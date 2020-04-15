@@ -17,12 +17,21 @@ namespace Orleans.Serialization
 {
     internal static class BinaryTokenStreamReaderExtensinons
     {
+        internal static SpanId ReadSpanId<TReader>(this TReader @this) where TReader : IBinaryTokenStreamReader
+        {
+            var hashCode = @this.ReadInt();
+            var len = @this.ReadUShort();
+            var bytes = @this.ReadBytes(len);
+            return new SpanId(bytes, hashCode);
+        }
+
         /// <summary> Read an <c>GrainId</c> value from the stream. </summary>
         /// <returns>Data from current position in stream, converted to the appropriate output type.</returns>
         internal static GrainId ReadGrainId<TReader>(this TReader @this) where TReader : IBinaryTokenStreamReader
         {
-            UniqueKey key = @this.ReadUniqueKey();
-            return GrainId.GetGrainId(key);
+            var type = @this.ReadSpanId();
+            var key = @this.ReadSpanId();
+            return new GrainId(new GrainType(type), key);
         }
 
         /// <summary> Read an <c>ActivationId</c> value from the stream. </summary>
@@ -65,7 +74,7 @@ namespace Orleans.Serialization
                 silo = null;
 
             if (act.Equals(ActivationId.Zero))
-                act = null;
+                act = default;
 
             return ActivationAddress.GetAddress(silo, grain, act);
         }
@@ -143,22 +152,16 @@ namespace Orleans.Serialization
                     result = @this.ReadChar();
                     break;
                 case SerializationTokenType.Guid:
-#if NETSTANDARD2_1
                     if (@this is BinaryTokenStreamReader2 reader)
                     {
-                        Span<byte> bytes = stackalloc byte[16];
-                        reader.ReadBytes(in bytes);
-                        result = new Guid(bytes);
+                        result = reader.ReadGuid();
                     }
                     else
                     {
                         var bytes = @this.ReadBytes(16);
                         result = new Guid(bytes);
                     }
-#else
-                    var bytes = @this.ReadBytes(16);
-                    result = new Guid(bytes);
-#endif
+
                     break;
                 case SerializationTokenType.Date:
                     result = DateTime.FromBinary(@this.ReadLong());

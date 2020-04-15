@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.Remoting.Messaging;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
@@ -37,9 +36,9 @@ namespace UnitTests.General
             }
         }
 
-        public class SiloConfigurator : ISiloBuilderConfigurator
+        public class SiloConfigurator : ISiloConfigurator
         {
-            public void Configure(ISiloHostBuilder hostBuilder)
+            public void Configure(ISiloBuilder hostBuilder)
             {
                 hostBuilder.Configure<SiloMessagingOptions>(options => options.PropagateActivityId = true);
             }
@@ -350,62 +349,6 @@ namespace UnitTests.General
             Assert.Equal(activityId,  result);  // "E2E ActivityId #1 not propagated correctly after #2"
             RequestContext.Clear();
         }
-
-        [Fact, TestCategory("Functional"), TestCategory("RequestContext")]
-        public async Task ClientInvokeCallback_CountCallbacks()
-        {
-            TestClientInvokeCallback callback = new TestClientInvokeCallback(output, Guid.Empty);
-            this.runtimeClient.ClientInvokeCallback = callback.OnInvoke;
-            IRequestContextProxyGrain grain = this.fixture.GrainFactory.GetGrain<IRequestContextProxyGrain>(GetRandomGrainId());
-
-            RequestContextTestUtils.SetActivityId(Guid.Empty);
-            Guid activityId = await grain.E2EActivityId();
-            Assert.Equal(Guid.Empty,  activityId);  // "E2EActivityId Call#1"
-            Assert.Equal(1,  callback.TotalCalls);  // "Number of callbacks"
-
-            this.runtimeClient.ClientInvokeCallback = null;
-            activityId = await grain.E2EActivityId();
-            Assert.Equal(Guid.Empty,  activityId);  // "E2EActivityId Call#2"
-            Assert.Equal(1,  callback.TotalCalls);  // "Number of callbacks - should be unchanged"
-        }
-
-        [Fact, TestCategory("Functional"), TestCategory("RequestContext")]
-        public async Task ClientInvokeCallback_SetActivityId()
-        {
-            Guid setActivityId = Guid.NewGuid();
-            Guid activityId2 = Guid.NewGuid();
-
-            RequestContextTestUtils.SetActivityId(activityId2);
-            TestClientInvokeCallback callback = new TestClientInvokeCallback(output, setActivityId);
-            this.runtimeClient.ClientInvokeCallback = callback.OnInvoke;
-            IRequestContextProxyGrain grain = this.fixture.GrainFactory.GetGrain<IRequestContextProxyGrain>(GetRandomGrainId());
-
-            Guid activityId = await grain.E2EActivityId();
-            Assert.Equal(setActivityId,  activityId);  // "E2EActivityId Call#1"
-            Assert.Equal(1,  callback.TotalCalls);  // "Number of callbacks"
-
-            RequestContextTestUtils.SetActivityId(Guid.Empty);
-            RequestContext.Clear(); // Need this to clear out any old ActivityId value cached in RequestContext. Code optimization in RequestContext does not unset entry if Trace.CorrelationManager.ActivityId == Guid.Empty [which is the "normal" case]
-            this.runtimeClient.ClientInvokeCallback = null;
-
-            activityId = await grain.E2EActivityId();
-            Assert.Equal(Guid.Empty,  activityId);  // "E2EActivityId Call#2 == Zero"
-            Assert.Equal(1,  callback.TotalCalls);  // "Number of callbacks - should be unchanged"
-        }
-
-        [Fact, TestCategory("Functional"), TestCategory("RequestContext")]
-        public async Task ClientInvokeCallback_GrainObserver()
-        {
-            TestClientInvokeCallback callback = new TestClientInvokeCallback(output, Guid.Empty);
-            this.runtimeClient.ClientInvokeCallback = callback.OnInvoke;
-            RequestContextGrainObserver observer = new RequestContextGrainObserver(output, null, null);
-            // CreateObjectReference will result in system target call to IClientObserverRegistrar.
-            // We want to make sure this does not invoke ClientInvokeCallback.
-            ISimpleGrainObserver reference = await this.fixture.GrainFactory.CreateObjectReference<ISimpleGrainObserver>(observer);
-
-            GC.KeepAlive(observer);
-            Assert.Equal(0,  callback.TotalCalls);  // "Number of callbacks"
-        }
     }
 
     internal class RequestContextGrainObserver : ISimpleGrainObserver
@@ -477,6 +420,8 @@ namespace UnitTests.General
     {
         private readonly ITestOutputHelper output;
 
+        private AsyncLocal<int> threadId = new AsyncLocal<int>();
+
         public Halo_CallContextTests(ITestOutputHelper output)
         {
             this.output = output;
@@ -500,8 +445,8 @@ namespace UnitTests.General
 
         private async Task ContextTester(int i)
         {
-            CallContext.LogicalSetData("threadId", i);
-            int contextId = (int)(CallContext.LogicalGetData("threadId") ?? -1);
+            threadId.Value = i;
+            int contextId = threadId.Value;
             output.WriteLine("ExplicitId={0}, ContextId={2}, ManagedThreadId={1}", i, Thread.CurrentThread.ManagedThreadId, contextId);
             await FrameworkContextVerification(i).ConfigureAwait(false);
         }
@@ -511,7 +456,7 @@ namespace UnitTests.General
             for (int i = 0; i < 10; i++)
             {
                 await Task.Delay(10);
-                int contextId = (int)(CallContext.LogicalGetData("threadId") ?? -1);
+                int contextId = threadId.Value;
                 output.WriteLine("Inner, in loop {0}, Explicit Id={2}, ContextId={3}, ManagedThreadId={1}", i, Thread.CurrentThread.ManagedThreadId, id, contextId);
                 Assert.Equal(id, contextId);
             }
@@ -547,7 +492,7 @@ namespace UnitTests.General
             {
                 output.WriteLine("OnInvoke called for Grain={0} PrimaryKey={1} GrainId={2} with {3} arguments",
                     grain.GetType().FullName,
-                    ((GrainReference)grain).GrainId.GetPrimaryKeyLong(),
+                    ((LegacyGrainId)((GrainReference)grain).GrainId).GetPrimaryKeyLong(),
                     ((GrainReference)grain).GrainId,
                     request.Arguments != null ? request.Arguments.Length : 0);
             }

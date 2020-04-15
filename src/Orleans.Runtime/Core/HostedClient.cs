@@ -16,7 +16,7 @@ namespace Orleans.Runtime
     /// <summary>
     /// A client which is hosted within a silo.
     /// </summary>
-    internal sealed class HostedClient : IDisposable, IHostedClient, ILifecycleParticipant<ISiloLifecycle>
+    internal sealed class HostedClient : IDisposable, ILifecycleParticipant<ISiloLifecycle>
     {
         private readonly Channel<Message> incomingMessages;
         private readonly Dictionary<Type, Tuple<IGrainExtension, IAddressable>> extensionsTable = new Dictionary<Type, Tuple<IGrainExtension, IAddressable>>();
@@ -27,7 +27,8 @@ namespace Orleans.Runtime
         private readonly ClientObserverRegistrar clientObserverRegistrar;
         private readonly ILogger logger;
         private readonly IInternalGrainFactory grainFactory;
-        private readonly ISiloMessageCenter siloMessageCenter;
+        private readonly MessageCenter siloMessageCenter;
+        private readonly MessagingTrace messagingTrace;
         private bool disposing;
         private Task messagePump;
 
@@ -39,7 +40,8 @@ namespace Orleans.Runtime
             IGrainReferenceRuntime grainReferenceRuntime,
             IInternalGrainFactory grainFactory,
             InvokableObjectManager invokableObjectManager,
-            ISiloMessageCenter messageCenter)
+            MessageCenter messageCenter,
+            MessagingTrace messagingTrace)
         {
             this.incomingMessages = Channel.CreateUnbounded<Message>(new UnboundedChannelOptions
             {
@@ -54,9 +56,10 @@ namespace Orleans.Runtime
             this.grainFactory = grainFactory;
             this.invokableObjects = invokableObjectManager;
             this.siloMessageCenter = messageCenter;
+            this.messagingTrace = messagingTrace;
             this.logger = logger;
 
-            this.ClientAddress = ActivationAddress.NewActivationAddress(siloDetails.SiloAddress, GrainId.NewClientId());
+            this.ClientAddress = ActivationAddress.NewActivationAddress(siloDetails.SiloAddress, LegacyGrainId.NewClientId());
         }
 
         /// <inheritdoc />
@@ -138,7 +141,7 @@ namespace Orleans.Runtime
             if (!this.ClientId.Equals(message.TargetGrain)) return false;
             if (message.IsExpired)
             {
-                message.DropExpiredMessage(this.logger, MessagingStatisticsGroup.Phase.Receive);
+                this.messagingTrace.OnDropExpiredMessage(message, MessagingStatisticsGroup.Phase.Receive);
                 return true;
             }
 

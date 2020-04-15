@@ -88,7 +88,6 @@ namespace Orleans.Runtime
             ActivationCount = activationCount;
             RecentlyUsedActivationCount = recentlyUsedActivationCount;
             SendQueueLength = messageCenter.SendQueueLength;
-            ReceiveQueueLength = messageCenter.ReceiveQueueLength;
             CpuUsage = hostEnvironmentStatistics.CpuUsage;
             AvailableMemory = hostEnvironmentStatistics.AvailableMemory;
             MemoryUsage = appEnvironmentStatistics.MemoryUsage;
@@ -107,7 +106,6 @@ namespace Orleans.Runtime
                 + $"ActivationCount={ActivationCount} " 
                 + $"RecentlyUsedActivationCount={RecentlyUsedActivationCount} "
                 + $"SendQueueLength={SendQueueLength} "
-                + $"ReceiveQueueLength={ReceiveQueueLength} "
                 + $"CpuUsage={CpuUsage} "
                 + $"AvailableMemory={AvailableMemory} "
                 + $"MemoryUsage={MemoryUsage} "
@@ -236,7 +234,7 @@ namespace Orleans.Runtime
                 + "   GrainClassTypeName={6}" + Environment.NewLine
                 + "   LocalActivations:" + Environment.NewLine
                 + "{7}." + Environment.NewLine,
-                    Grain.ToDetailedString(),                                   // {0}
+                    Grain.ToString(),                                   // {0}
                     SiloName,                                                   // {1}
                     SiloAddress.ToLongString(),                                 // {2}
                     Utils.EnumerableToString(LocalCacheActivationAddresses),    // {3}
